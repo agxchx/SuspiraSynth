@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SUSPIRA - Playground de Síntesis </title>
+  <title>SUSPIRA - Playground de Síntesis Corregido</title>
   <script src="soundtouch-compiled.js"></script>
   <style>
     :root {
@@ -44,8 +44,249 @@
       overflow-y: auto;
     }
     
-    body.theater-mode-active {
+    body.easy-mode-active {
         overflow: hidden;
+        padding: 0;
+    }
+
+    #loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: black;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.5s ease;
+    }
+    #loading-overlay video {
+        width: 30vw;
+        height: auto;
+        max-width: 400px;
+        margin-bottom: 20px;
+    }
+    #startButton {
+        display: none;
+        background-color: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: color 0.3s ease;
+    }
+    #startButton:hover {
+        color: white;
+    }
+
+
+    /* --- ESTILOS PARA EL NUEVO MODO FÁCIL --- */
+    body.easy-mode-active .main-container,
+    body.easy-mode-active #loopSection {
+        display: none;
+    }
+
+    body.easy-mode-active #reverb-eq-visualizer-casilla {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 2000;
+        padding: 0;
+        background-color: var(--primary-bg-color);
+        border: none;
+        border-radius: 0;
+    }
+
+    body.easy-mode-active #reverb-eq-visualizer-casilla > *:not(#spectrumCanvas):not(.loader-overlay):not(#easyModeExitBtn):not(#easyModeSourceControls):not(#source-controls-casilla):not(#easyModeTopControls):not(#easyModeBottomControls):not(#easyModeGranulatorContainer) {
+        display: none;
+    }
+    
+    #source-controls-casilla {
+      transition: all 0.3s ease-in-out;
+    }
+    body.easy-mode-active #source-controls-casilla {
+        display: none;
+    }
+    body.easy-mode-active #source-controls-casilla.floating {
+        display: flex !important;
+        position: absolute;
+        bottom: 70px;
+        left: 20px;
+        width: 280px;
+        z-index: 2200;
+        background-color: rgba(34, 34, 34, 0.85);
+        backdrop-filter: blur(5px);
+        border: 1px solid #666;
+    }
+
+    body.easy-mode-active #reverb-eq-visualizer-casilla #spectrumCanvas {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        aspect-ratio: unset;
+    }
+    
+    #easyModeSourceControls {
+        display: none;
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 2100;
+        align-items: center;
+        gap: 2px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    body.easy-mode-active #easyModeSourceControls {
+        display: flex;
+    }
+    
+    #easyModeTopControls, #easyModeBottomControls {
+        display: none;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 2100;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    #easyModeTopControls { top: 20px; }
+    #easyModeBottomControls { bottom: 20px; }
+
+    body.easy-mode-active:hover #easyModeSourceControls,
+    body.easy-mode-active:hover #easyModeExitBtn,
+    body.easy-mode-active:hover #easyModeTopControls,
+    body.easy-mode-active:hover #easyModeBottomControls,
+    body.easy-mode-active:hover #easyModeGranulatorContainer {
+        opacity: 0.6;
+    }
+    body.easy-mode-active #easyModeSourceControls:hover,
+    body.easy-mode-active #easyModeExitBtn:hover,
+    body.easy-mode-active #easyModeTopControls:hover,
+    body.easy-mode-active #easyModeBottomControls:hover,
+    body.easy-mode-active #easyModeGranulatorContainer:hover {
+        opacity: 1;
+    }
+    
+    .easy-mode-btn-round {
+        background-color: rgba(128, 128, 128, 0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        width: 38px;
+        height: 38px;
+    }
+    .easy-mode-btn-round.main-rec {
+        width: 44px;
+        height: 44px;
+        font-size: 1.5rem;
+        color: #ff4d4d;
+    }
+     .easy-mode-btn-round.main-rec.is-recording {
+        background-color: #ff4d4d;
+        color: white;
+        animation: blink-red 1s infinite;
+    }
+
+    #easyModeSourceControls .control-group {
+        display: flex;
+        background-color: rgba(128, 128, 128, 0.7);
+        border-radius: 22px;
+        padding: 4px;
+        gap: 4px;
+    }
+
+    #easyModeSourceControls button,
+    #easyModeSourceControls select {
+        background-color: transparent;
+        color: white;
+        border: none;
+        cursor: pointer;
+        height: 36px;
+        font-size: 0.9rem;
+        padding: 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #easyModeAudioFileBtn { border-radius: 18px; }
+    #easyModeMicSelect {
+        border-radius: 18px;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        min-width: 120px;
+        text-align: center;
+    }
+    #easyModeSourceToggleBtn, #easyModePanelToggleBtn {
+        font-size: 1.2rem;
+        width: 36px;
+        border-radius: 50%;
+    }
+     #easyModeSourceToggleBtn:hover, #easyModePanelToggleBtn:hover {
+         background-color: rgba(255, 255, 255, 0.2);
+     }
+
+    #easyModeExitBtn {
+        display: none;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 2100;
+        background-color: transparent;
+        border: none;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        padding: 0;
+    }
+    #easyModeExitBtn img {
+        width: 40px;
+        height: auto;
+    }
+    body.easy-mode-active #easyModeExitBtn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    #easyModeGranulatorContainer {
+        display: none;
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 2100;
+        width: 25px;
+        height: 150px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+    body.easy-mode-active #easyModeGranulatorContainer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    #easyModeGranulatorVolume {
+        writing-mode: bt-lr;
+        -webkit-appearance: slider-vertical;
+        width: 8px;
+        height: 140px;
     }
 
     h1, h2, h3, h4 { text-align: center; margin-top: 0.4em; margin-bottom: 0.4em; }
@@ -134,7 +375,6 @@
         padding: 2px;
     }
 
-
     label { display: inline-block; margin-right: 4px; font-size: 0.85rem; }
     select {
       font-size: 0.8rem; padding: 5px; height: 30px; border-radius: 3px;
@@ -172,6 +412,7 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
+        transition: all 0.3s ease-in-out;
     }
 
     .column-left { flex: 1; min-width: 250px; }
@@ -185,11 +426,6 @@
     }
     .casilla h3, .casilla h4 { color: var(--text-color); margin-top: 0; margin-bottom: 0.25em; }
     .casilla label { color: var(--text-color); }
-
-    #source-controls-casilla {
-      position: relative;
-      min-height: 145px;
-    }
     
     #source-controls-casilla .control-panel { background-color: var(--secondary-bg-color); color: var(--text-color); border: 1px solid #444; padding: 6px; border-radius: 3px; }
     #source-controls-casilla .control-panel label, #source-controls-casilla .control-panel span { color: var(--text-color); }
@@ -327,27 +563,7 @@
     #lfo-controls-casilla .control-row input[type="range"] { flex-grow: 1; }
     #lfo-controls-casilla .control-row input[type="number"].fader-value-input { width: 60px; flex-shrink: 0; }
 
-
-    #reverb-eq-visualizer-casilla {
-        gap: 8px;
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        flex-grow: 1;
-        position: relative;
-    }
-    #reverb-eq-visualizer-casilla.theater-mode {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 2000;
-        padding: 2rem;
-        background-color: var(--primary-bg-color);
-    }
-
-     .reverb-eq-header {
+    .reverb-eq-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -358,7 +574,8 @@
       gap: 6px;
     }
     #reverb-eq-visualizer-casilla canvas#spectrumCanvas {
-        border: 1px solid #555; background-color: rgb(30, 30, 30);
+        border: 1px solid #555;
+        background-color: rgb(0, 0, 0); /* CAMBIO: Fondo negro */
         margin-bottom: 0;
         cursor: pointer;
         width: 100%;
@@ -386,10 +603,33 @@
         gap: 6px;
         margin-top: 10px;
     }
-    .rec-action-buttons, .save-action-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+    .rec-action-buttons, .visualizer-action-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
     .rec-action-buttons { justify-content: flex-start; }
-    .save-action-buttons { justify-content: flex-end; }
-    .rec-action-buttons button, .save-action-buttons button { font-size: 0.7rem; padding: 4px 6px; flex-grow: 0; min-height: 24px; }
+    .visualizer-action-buttons { justify-content: flex-end; align-items: center; }
+    .rec-action-buttons button, .visualizer-action-buttons button { font-size: 0.7rem; padding: 4px 6px; flex-grow: 0; min-height: 24px; }
+    
+    #utility-casilla {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    #utility-casilla .utility-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        justify-content: space-between;
+        align-items: center;
+    }
+    #utility-casilla .utility-row .btn-group {
+        display: flex;
+        gap: 4px;
+    }
+    #utility-casilla .utility-row button {
+        flex-grow: 1;
+        font-size: 0.65rem;
+        padding: 4px 5px;
+        min-height: 22px;
+    }
 
     #master-controls-casilla { display: flex; flex-direction: column; gap: 8px; }
     .master-timeline-and-buttons-container { display: flex; flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -415,7 +655,7 @@
     #granulatorPlayToggleBtn { font-size: 1.1em; padding: 4px; min-width: 28px; min-height: 28px; }
      #granulator-main-casilla #recordedWaveform {
         width: 100%;
-        height: 38px;
+        height: 30px;
         background-color: var(--primary-bg-color);
         border: 1px solid #555;
         border-radius: 3px;
@@ -494,8 +734,24 @@
     }
     .loop-controls > div { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
     .loop-controls label { flex-shrink: 0; margin-right: 4px; }
-    .loop-controls input[type="range"], .loop-controls input[type="checkbox"] { flex-grow: 1; }
-    .loop-controls button { width: 100%; margin-top: 4px; font-size: 0.8rem; padding: 4px 6px; }
+    .loop-controls input[type="range"] { flex-grow: 1; }
+    
+    .loop-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .loop-actions button {
+        flex: 1;
+        font-size: 0.75rem;
+        padding: 4px;
+    }
+    .loop-actions button[aria-pressed="true"] {
+        background-color: var(--highlight-color);
+        box-shadow: 0 0 8px var(--highlight-color);
+        color: white;
+    }
+
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
 
     #patch-bay-casilla, #routing-patch-bay-casilla {
@@ -628,7 +884,6 @@
         color: #FFFFFF;
     }
 
-    /* --- Animation for Armed Automation Button --- */
     @keyframes blink-red {
         50% { background-color: #c04040; box-shadow: 0 0 8px #c04040; }
     }
@@ -646,7 +901,10 @@
   </style>
 </head>
 <body>
-
+  <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: black; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease;">
+    <video src="INFO.mov" autoplay muted loop style="width: 30vw; height: auto; max-width: 400px; margin-bottom: 20px;"></video>
+    <button id="startButton">_inicio</button>
+  </div>
   <main class="main-container">
     <div class="top-controls-grid">
       <div class="column-left">
@@ -714,15 +972,12 @@
         </div>
         <div class="casilla" id="granulator-main-casilla">
             <div class="granulator-header">
-              <h4 id="granulator-heading">Granulador (Puntos de Grano)</h4>
+              <h4 id="granulator-heading">Granulador</h4>
               <div>
                 <button id="granulatorPlayToggleBtn" aria-label="Iniciar o detener granulador" class="mappable">▶</button>
               </div>
             </div>
             <canvas id="recordedWaveform" width="250" height="40"></canvas>
-            <div class="granulator-filter-sidechain-controls">
-              <button id="toggleGranulatorFilterBtn" type="button" class="mappable">Filtro: Highpass</button>
-            </div>
             <div class="dial-controls-container">
               <div class="dial-container" id="overlapDialContainer">
                 <label for="overlapDial" id="overlapDialLabel">Overlap</label>
@@ -738,13 +993,6 @@
                 </div>
                 <input type="number" class="dial-value-input" id="grainLengthDialValue" value="0.60" min="0.01" max="1" step="0.01" data-decimals="2" aria-labelledby="grainLengthDialLabel">
               </div>
-              <div class="dial-container" id="granulatorFilterFreqContainer">
-                <label for="granulatorFilterFreq" id="granulatorFilterFreqLabel">Cutoff</label>
-                <div class="dial mappable" id="granulatorFilterFreq" data-min="20" data-max="20000" data-step="1" data-value="10000" data-decimals="0">
-                  <div class="dial-indicator"></div>
-                </div>
-                <input type="number" class="dial-value-input" id="granulatorFilterFreqValue" value="10000" min="20" max="20000" step="1" data-decimals="0" aria-labelledby="granulatorFilterFreqLabel">
-              </div>
               <div class="dial-container" id="pitchBendDialContainer">
                 <label for="pitchBendDial" id="pitchBendDialLabel">Pitch Bend</label>
                 <div class="dial mappable" id="pitchBendDial" data-min="-12" data-max="12" data-step="0.1" data-value="0" data-decimals="1" data-unit="st">
@@ -754,7 +1002,7 @@
               </div>
             </div>
             <div class="granulator-fader-container">
-              <label for="granulatorVolume" id="granulatorVolumeLabel">Vol. Granulador:</label>
+              <label for="granulatorVolume" id="granulatorVolumeLabel">Vol.</label>
               <input type="range" id="granulatorVolume" class="fader mappable" min="0" max="1" step="0.01" value="0.2">
               <input type="number" id="granulatorVolumeValueInput" class="fader-value-input" min="0" max="1" step="0.01" value="0.20" aria-labelledby="granulatorVolumeLabel">
               <span id="granulatorVolumeValue" class="sr-only">0.2</span>
@@ -762,9 +1010,9 @@
         </div>
         <div class="casilla" id="spectral-synth-casilla">
             <div class="switch-control-row">
-                <h4>Sintetizador Espectral</h4>
+                <h4>Espectro</h4>
                 <label class="toggle-switch-container">
-                    <input type="checkbox" id="spectralSynthPowerSwitch" class="toggle-switch-input">
+                    <input type="checkbox" id="spectralSynthPowerSwitch" class="toggle-switch-input mappable">
                     <span class="toggle-switch-slider"></span>
                 </label>
             </div>
@@ -784,23 +1032,31 @@
       </div>
       <div class="column-middle">
         <div class="casilla" id="reverb-eq-visualizer-casilla">
-            <div class="reverb-eq-header">
-                <label class="canvas-label" for="spectrumCanvas">Visualizador Principal (EQ / Espectral):</label>
-                <div class="header-buttons">
-                    <div class="switch-control-row" style="width: auto; padding: 0; gap: 6px;">
-                        <label for="animationPowerSwitch" style="font-size: 0.8rem;">Animación</label>
-                        <label class="toggle-switch-container small-switch">
-                            <input type="checkbox" id="animationPowerSwitch" class="toggle-switch-input" checked>
-                            <span class="toggle-switch-slider"></span>
-                        </label>
-                    </div>
-                    <button id="toggleFullscreenBtn" aria-label="Activar Modo fácil">Modo fácil</button>
-                    <button id="clearDrawingBtn" aria-label="Limpiar Dibujo Espectral">Limpiar Dibujo</button>
-                    <button id="undoDrawingBtn" aria-label="Deshacer último trazo">Retroceder</button>
-                    <button id="midiMapBtn" aria-label="Activar mapeo MIDI">MIDI</button>
-                    <button id="togglePatchBayBtn" aria-label="Toggle Patch Bay">PatchBay</button>
+            <button id="easyModeExitBtn" aria-label="Salir de Modo Fácil">
+                <img src="logo.png" alt="Salir de Modo Fácil">
+            </button>
+            <div id="easyModeSourceControls">
+                <div class="control-group">
+                    <button id="easyModeAudioFileBtn" title="Agregar Audio">Agregar Audio</button>
+                    <select id="easyModeMicSelect" class="hidden" title="Seleccionar Micrófono"></select>
                 </div>
+                <button id="easyModeSourceToggleBtn" title="Cambiar a Micrófono">···</button>
+                <button id="easyModePanelToggleBtn" title="Abrir panel de fuente completo">↗</button>
             </div>
+            <div id="easyModeTopControls">
+                <button id="easyModeAppendBtn" class="easy-mode-btn-round" title="Append (Añadir Grabación)">+</button>
+                <button id="easyModeRecordBtn" class="easy-mode-btn-round main-rec" title="Record/Stop">●</button>
+                <button id="easyModeOverdubBtn" class="easy-mode-btn-round" title="Overdub (Sobrescribir)">◎</button>
+                <button id="easyModeClearBtn" class="easy-mode-btn-round" title="Clear (Borrar)">⌫</button>
+            </div>
+            <div id="easyModeBottomControls">
+                 <button id="easyModeRecordMasterBtn" class="easy-mode-btn-round main-rec" title="Grabar/Detener Master">●</button>
+                 <button id="easyModePlayMasterBtn" class="easy-mode-btn-round" title="Reproducir Grabación Master">▶</button>
+            </div>
+            <div id="easyModeGranulatorContainer">
+                <input type="range" id="easyModeGranulatorVolume" min="0" max="1" step="0.01" value="0.2">
+            </div>
+            <div class="reverb-eq-header"></div>
             <canvas id="spectrumCanvas" width="600" height="300"></canvas>
             <div id="loader-overlay" class="loader-overlay hidden">
                 <div class="loader"></div>
@@ -814,15 +1070,16 @@
                     <button id="overdubNowBtn" class="mappable">Overdub</button>
                     <button id="clearRecBtn" class="mappable">Clear</button>
                 </div>
-                <div class="save-action-buttons">
-                    <button id="stateBtn1" aria-label="Guardar o cargar estado 1" class="mappable">Save 1</button>
-                    <button id="stateBtn2" aria-label="Guardar o cargar estado 2" class="mappable">Save 2</button>
-                    <button id="stateBtn3" aria-label="Guardar o cargar estado 3" class="mappable">Save 3</button>
-                    <button id="stateBtn4" aria-label="Guardar o cargar estado 4" class="mappable">Save 4</button>
-                    <button id="memBtn1" aria-label="Grabar o reproducir memoria de automatización 1" class="mappable">Mem 1</button>
-                    <button id="memBtn2" aria-label="Grabar o reproducir memoria de automatización 2" class="mappable">Mem 2</button>
-                    <button id="memBtn3" aria-label="Grabar o reproducir memoria de automatización 3" class="mappable">Mem 3</button>
-                    <button id="memBtn4" aria-label="Grabar o reproducir memoria de automatización 4" class="mappable">Mem 4</button>
+                <div class="visualizer-action-buttons">
+                    <div class="switch-control-row" style="width: auto; padding: 0; gap: 6px;">
+                        <label for="animationPowerSwitch" style="font-size: 0.8rem;">Animación</label>
+                        <label class="toggle-switch-container small-switch">
+                            <input type="checkbox" id="animationPowerSwitch" class="toggle-switch-input" checked>
+                            <span class="toggle-switch-slider"></span>
+                        </label>
+                    </div>
+                    <button id="clearDrawingBtn" aria-label="Limpiar Dibujo Espectral">Limpiar Dibujo</button>
+                    <button id="undoDrawingBtn" aria-label="Deshacer último trazo">Retroceder</button>
                 </div>
             </div>
         </div>
@@ -851,21 +1108,69 @@
         </div>
       </div>
       <div class="column-right">
+        <div class="casilla" id="utility-casilla">
+            <div class="utility-row">
+                <button id="toggleFullscreenBtn" aria-label="Activar Modo fácil">Modo fácil</button>
+                <button id="midiMapBtn" aria-label="Activar mapeo MIDI">MIDI</button>
+                <button id="togglePatchBayBtn" aria-label="Toggle Patch Bay">PatchBay</button>
+            </div>
+            <div class="utility-row">
+                <div class="btn-group save-action-buttons">
+                    <button id="stateBtn1" aria-label="Guardar o cargar estado A" class="mappable">Save-A</button>
+                    <button id="stateBtn2" aria-label="Guardar o cargar estado B" class="mappable">Save-B</button>
+                    <button id="stateBtn3" aria-label="Guardar o cargar estado C" class="mappable">Save-C</button>
+                    <button id="stateBtn4" aria-label="Guardar o cargar estado D" class="mappable">Save-D</button>
+                </div>
+                <div class="btn-group mem-buttons">
+                    <button id="memBtn1" aria-label="Grabar o reproducir automatización A" class="mappable">Aut-A</button>
+                    <button id="memBtn2" aria-label="Grabar o reproducir automatización B" class="mappable">Aut-B</button>
+                    <button id="memBtn3" aria-label="Grabar o reproducir automatización C" class="mappable">Aut-C</button>
+                    <button id="memBtn4" aria-label="Grabar o reproducir automatización D" class="mappable">Aut-D</button>
+                </div>
+            </div>
+        </div>
+        <div class="casilla" id="reverb-dials-casilla">
+            <h4>Reverb</h4>
+            <div class="dial-controls-container">
+                <div class="dial-container" id="reverbSizeDialContainer">
+                    <label for="reverbSizeDial" id="reverbSizeDialLabel">Size</label>
+                    <div class="dial mappable" id="reverbSizeDial" data-min="0.1" data-max="6" data-step="0.1" data-value="5.0" data-unit="s" data-decimals="1">
+                        <div class="dial-indicator"></div>
+                    </div>
+                    <input type="number" class="dial-value-input" id="reverbSizeDialValue" value="5.0" min="0.1" max="6" step="0.1" data-unit="s" data-decimals="1" aria-labelledby="reverbSizeDialLabel">
+                </div>
+                <div class="dial-container" id="reverbDryWetDialContainer">
+                    <label for="reverbDryWetDial" id="reverbDryWetDialLabel">Dry/Wet</label>
+                    <div class="dial mappable" id="reverbDryWetDial" data-min="0" data-max="1" data-step="0.01" data-value="0.85" data-decimals="2">
+                        <div class="dial-indicator"></div>
+                    </div>
+                    <input type="number" class="dial-value-input" id="reverbDryWetDialValue" value="0.85" min="0" max="1" step="0.01" data-decimals="2" aria-labelledby="reverbDryWetDialLabel">
+                </div>
+                <div class="dial-container" id="granulatorFilterFreqContainer">
+                  <label for="granulatorFilterFreq" id="granulatorFilterFreqLabel">Cutoff</label>
+                  <div class="dial mappable" id="granulatorFilterFreq" data-min="20" data-max="20000" data-step="1" data-value="10000" data-decimals="0">
+                    <div class="dial-indicator"></div>
+                  </div>
+                  <input type="number" class="dial-value-input" id="granulatorFilterFreqValue" value="10000" min="20" max="20000" step="1" data-decimals="0" aria-labelledby="granulatorFilterFreqLabel">
+                </div>
+            </div>
+             <button id="toggleGranulatorFilterBtn" type="button" class="mappable" style="width:100%; margin-top: 8px; font-size: 0.7rem; padding: 4px 6px;">Filtro: Highpass</button>
+        </div>
         <div class="casilla" id="lfo-controls-casilla">
             <div>
-                <h4>LFO Filtro (Post-Reverb)</h4>
+                <h4>LFO</h4>
                 <label class="toggle-switch-container">
                     <input type="checkbox" id="lfoPowerSwitch" class="toggle-switch-input">
                     <span class="toggle-switch-slider"></span>
                 </label>
             </div>
             <div class="control-row">
-              <label for="granulatorLfoSpeed" id="granulatorLfoSpeedLabel">Vel. LFO (Hz):</label>
+              <label for="granulatorLfoSpeed" id="granulatorLfoSpeedLabel">Rate</label>
               <input type="range" id="granulatorLfoSpeed" min="0.1" max="20" step="0.01" value="1" class="mappable">
               <input type="number" id="granulatorLfoSpeedValueInput" class="fader-value-input" min="0.1" max="20" step="0.01" value="1" aria-labelledby="granulatorLfoSpeedLabel">
             </div>
             <div class="control-row">
-              <label for="granulatorLfoDepth" id="granulatorLfoDepthLabel">Depth LFO (Cutoff):</label>
+              <label for="granulatorLfoDepth" id="granulatorLfoDepthLabel">Depth</label>
               <input type="range" id="granulatorLfoDepth" min="0" max="10000" step="1" value="500" class="mappable">
               <input type="number" id="granulatorLfoDepthValueInput" class="fader-value-input" min="0" max="10000" step="1" value="500" aria-labelledby="granulatorLfoDepthLabel">
             </div>
@@ -909,26 +1214,6 @@
             </div>
           </div>
         </div>
-        <div class="casilla" id="reverb-dials-casilla">
-            <h4>Controles de Reverb (Master)</h4>
-            <div class="dial-controls-container">
-                <div class="dial-container" id="reverbSizeDialContainer">
-                    <label for="reverbSizeDial" id="reverbSizeDialLabel">Size</label>
-                    <div class="dial mappable" id="reverbSizeDial" data-min="0.1" data-max="6" data-step="0.1" data-value="5.0" data-unit="s" data-decimals="1">
-                        <div class="dial-indicator"></div>
-                    </div>
-                    <input type="number" class="dial-value-input" id="reverbSizeDialValue" value="5.0" min="0.1" max="6" step="0.1" data-unit="s" data-decimals="1" aria-labelledby="reverbSizeDialLabel">
-                </div>
-                <div class="dial-container" id="reverbDryWetDialContainer">
-                    <label for="reverbDryWetDial" id="reverbDryWetDialLabel">Dry/Wet</label>
-                    <div class="dial mappable" id="reverbDryWetDial" data-min="0" data-max="1" data-step="0.01" data-value="0.85" data-decimals="2">
-                        <div class="dial-indicator"></div>
-                    </div>
-                    <input type="number" class="dial-value-input" id="reverbDryWetDialValue" value="0.85" min="0" max="1" step="0.01" data-decimals="2" aria-labelledby="reverbDryWetDialLabel">
-                </div>
-            </div>
-        </div>
-
         <div class="casilla" id="routing-patch-bay-casilla">
           <button class="close-btn" aria-label="Cerrar Patch Bay">&times;</button>
           <h4 class="drag-handle">Patch Bay de Ruteo de Audio</h4>
@@ -1052,23 +1337,11 @@
             <input type="range" id="speedControl1" min="0.1" max="4" step="0.01" value="1" data-decimals="2" class="mappable">
             <input type="number" id="speedValue1" min="0.1" max="4" step="0.01" value="1" data-decimals="2" aria-labelledby="speedControl1Label">
           </div>
-          <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="flexPitchSwitch1" style="font-size: 0.8rem; margin-right: 5px;">Flex Pitch</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="flexPitchSwitch1" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="reverseSwitch1" style="font-size: 0.8rem; margin-right: 5px;">Reversa</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="reverseSwitch1" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
+          <div class="loop-actions">
+            <button id="reverseBtn1" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 1">REV</button>
+            <button id="loopPlayPauseBtn1" type="button" class="mappable">Play</button>
+            <button id="flexPitchBtn1" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 1">FLEX</button>
           </div>
-          <div><button id="loopPlayPauseBtn1" type="button" class="mappable">Play</button></div>
         </div>
       </div>
       <div class="loop-visualizer-group">
@@ -1098,23 +1371,11 @@
             <input type="range" id="speedControl2" min="0.1" max="4" step="0.01" value="1" data-decimals="2" class="mappable">
             <input type="number" id="speedValue2" min="0.1" max="4" step="0.01" value="1" data-decimals="2" aria-labelledby="speedControl2Label">
           </div>
-          <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="flexPitchSwitch2" style="font-size: 0.8rem; margin-right: 5px;">Flex Pitch</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="flexPitchSwitch2" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="reverseSwitch2" style="font-size: 0.8rem; margin-right: 5px;">Reversa</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="reverseSwitch2" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
+          <div class="loop-actions">
+            <button id="reverseBtn2" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 2">REV</button>
+            <button id="loopPlayPauseBtn2" type="button" class="mappable">Play</button>
+            <button id="flexPitchBtn2" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 2">FLEX</button>
           </div>
-          <div><button id="loopPlayPauseBtn2" type="button" class="mappable">Play</button></div>
         </div>
       </div>
       <div class="loop-visualizer-group">
@@ -1144,23 +1405,11 @@
             <input type="range" id="speedControl3" min="0.1" max="4" step="0.01" value="1" data-decimals="2" class="mappable">
             <input type="number" id="speedValue3" min="0.1" max="4" step="0.01" value="1" data-decimals="2" aria-labelledby="speedControl3Label">
           </div>
-          <div style="display: flex; justify-content: space-around; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="flexPitchSwitch3" style="font-size: 0.8rem; margin-right: 5px;">Flex Pitch</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="flexPitchSwitch3" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
-              <div class="switch-control-row" style="width: auto; padding: 0;">
-                  <label for="reverseSwitch3" style="font-size: 0.8rem; margin-right: 5px;">Reversa</label>
-                  <label class="toggle-switch-container small-switch">
-                      <input type="checkbox" id="reverseSwitch3" class="toggle-switch-input">
-                      <span class="toggle-switch-slider"></span>
-                  </label>
-              </div>
+          <div class="loop-actions">
+            <button id="reverseBtn3" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 3">REV</button>
+            <button id="loopPlayPauseBtn3" type="button" class="mappable">Play</button>
+            <button id="flexPitchBtn3" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 3">FLEX</button>
           </div>
-          <div><button id="loopPlayPauseBtn3" type="button" class="mappable">Play</button></div>
         </div>
       </div>
     </section>
@@ -1310,6 +1559,97 @@ function makeDraggable(element, handle) {
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM Content Loaded. Initializing Dials, Faders and UI...");
+
+    // --- LÓGICA MODO FÁCIL ---
+    const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
+    const visualizerCasilla = document.getElementById('reverb-eq-visualizer-casilla');
+    const sourceControlsCasilla = document.getElementById('source-controls-casilla');
+    
+    const visualizerOriginalParent = visualizerCasilla.parentNode;
+    const visualizerOriginalNextSibling = visualizerCasilla.nextSibling;
+    const sourceOriginalParent = sourceControlsCasilla.parentNode;
+    const sourceOriginalNextSibling = sourceControlsCasilla.nextSibling;
+    
+    const easyModeAudioFileBtn = document.getElementById('easyModeAudioFileBtn');
+    const easyModeMicSelect = document.getElementById('easyModeMicSelect');
+    const easyModeSourceToggleBtn = document.getElementById('easyModeSourceToggleBtn');
+    const easyModePanelToggleBtn = document.getElementById('easyModePanelToggleBtn');
+
+
+    function toggleEasyMode() {
+        const isInEasyMode = document.body.classList.contains('easy-mode-active');
+        
+        if (isInEasyMode) {
+            document.body.classList.remove('easy-mode-active');
+            visualizerOriginalParent.insertBefore(visualizerCasilla, visualizerOriginalNextSibling);
+            sourceOriginalParent.insertBefore(sourceControlsCasilla, sourceOriginalNextSibling);
+            sourceControlsCasilla.classList.remove('floating');
+
+        } else {
+            document.body.appendChild(visualizerCasilla); 
+            document.body.classList.add('easy-mode-active');
+            if (window.currentAudioSourceType === 'mic') {
+                easyModeAudioFileBtn.classList.add('hidden');
+                easyModeMicSelect.classList.remove('hidden');
+                easyModeSourceToggleBtn.title = "Cambiar a Archivo";
+            } else {
+                easyModeAudioFileBtn.classList.remove('hidden');
+                easyModeMicSelect.classList.add('hidden');
+                easyModeSourceToggleBtn.title = "Cambiar a Micrófono";
+            }
+        }
+
+        toggleFullscreenBtn.textContent = document.body.classList.contains('easy-mode-active') ? "Salir de Fácil" : "Modo fácil";
+
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 50);
+    }
+    
+    toggleEasyMode(); 
+
+    if (toggleFullscreenBtn) {
+        toggleFullscreenBtn.addEventListener('click', toggleEasyMode);
+    }
+    if (document.getElementById('easyModeExitBtn')) {
+        document.getElementById('easyModeExitBtn').addEventListener('click', toggleEasyMode);
+    }
+    
+    if (easyModeAudioFileBtn) {
+        easyModeAudioFileBtn.addEventListener('click', () => document.getElementById('audioFileInput')?.click());
+    }
+
+    if (easyModeSourceToggleBtn) {
+        easyModeSourceToggleBtn.addEventListener('click', () => {
+            document.getElementById('sourceToggleButton')?.click();
+        });
+    }
+    
+    if (easyModePanelToggleBtn) {
+        easyModePanelToggleBtn.addEventListener('click', () => {
+            if (document.body.classList.contains('easy-mode-active')) {
+                visualizerCasilla.appendChild(sourceControlsCasilla);
+                sourceControlsCasilla.classList.toggle('floating');
+            }
+        });
+    }
+    
+    if (easyModeMicSelect) {
+        easyModeMicSelect.addEventListener('change', (e) => {
+            const mainMicSelect = document.getElementById('micSelect');
+            if (mainMicSelect) {
+                mainMicSelect.value = e.target.value;
+                mainMicSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.body.classList.contains('easy-mode-active')) {
+            toggleEasyMode();
+        }
+    });
+    // --- FIN LÓGICA MODO FÁCIL ---
 
     const controlDefaults = {};
     function saveDefaults() {
@@ -1473,26 +1813,54 @@ document.addEventListener('DOMContentLoaded', function() {
 (function(){
     console.log("SUSPIRA Audio Logic Initializing...");
     
-    // --- Worker Initialization ---
     let animationWorker;
-    let lastParticleData = null; // Almacenará los últimos datos recibidos del worker
-    let offscreenCanvas = document.createElement('canvas'); // Canvas en memoria para optimizar el dibujado
-    let offscreenCtx = offscreenCanvas.getContext('2d');   // Contexto del canvas en memoria
+    let audioWorker; // NUEVO: Worker para Flex Pitch
+    let lastParticleData = null;
+    let offscreenCanvas = document.createElement('canvas');
+    let offscreenCtx = offscreenCanvas.getContext('2d');
 
     if (window.Worker) {
         animationWorker = new Worker('worker.js');
 
-        // Escucha los resultados del worker
         animationWorker.onmessage = function(e) {
             lastParticleData = e.data;
         };
         
-        // Envía mensaje para inicializar las partículas en el worker
         animationWorker.postMessage({ type: 'init' });
+
+        // NUEVO: Inicialización y listener para el worker de audio
+        audioWorker = new Worker('audio-worker.js');
+        audioWorker.onmessage = function(event) {
+            const { processedBufferChannels, sampleRate, cacheKey } = event.data;
+            if (!processedBufferChannels) return;
+
+            const loopIndex = parseInt(cacheKey.split('_')[0]);
+            if (isNaN(loopIndex)) return;
+
+            try {
+                const newBuffer = audioContext.createBuffer(processedBufferChannels.length, processedBufferChannels[0].length, sampleRate);
+                for(let i = 0; i < processedBufferChannels.length; i++) {
+                    newBuffer.getChannelData(i).set(processedBufferChannels[i]);
+                }
+
+                if (flexPitchCache[loopIndex]) {
+                    flexPitchCache[loopIndex][cacheKey] = newBuffer;
+                    console.log(`Flex Pitch para el loop ${loopIndex + 1} procesado por worker y cacheado.`);
+                    
+                    // Si el loop está sonando, reiniciarlo para usar el nuevo buffer cacheado
+                    if (isLoopRealtimePlaying[loopIndex]) {
+                        stopLoopRealtimePlayback(loopIndex, true); // true para evitar cambiar el texto del botón
+                        startLoopRealtimePlayback(loopIndex);
+                    }
+                }
+            } catch (e) {
+                console.error("Error reconstruyendo buffer desde el worker:", e);
+            }
+        };
+
     } else {
-        console.error("Tu navegador no soporta Web Workers. La animación de partículas estará desactivada.");
+        console.error("Tu navegador no soporta Web Workers. La animación de partículas y Flex Pitch estarán desactivadas o tendrán bajo rendimiento.");
     }
-    // --- End Worker Initialization ---
 
     let audioContext;
     let gainNode;
@@ -1521,7 +1889,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let sidechainSmoothedEnvelope = 0, sidechainAnimationRequest = null;
     
     let mediaStream, currentSourceNode;
-    let mainPlayerAnimationFrameId = null;
     let audioBuffer = null;
     let isMainPlayerPlaying = false;
     let mainPlayerStartOffset = 0, mainPlayerStartTime = 0, mainPlayerDuration = 0;
@@ -1529,10 +1896,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let mainRecordingStreamDestinationNode, mainAudioRecorder, mainRecordedChunks = [];
     let recordSourceMixer;
+    let isRecorderSetup = false;
 
     let mainRecorderAudioBuffer = null, mainRecorderAudioBufferId = 0;
+
+    // OPTIMIZACIÓN DE LOOPS: Buffers dedicados
+    let loopDedicatedBuffers = [null, null, null];
+    let loopReversedBuffersCache = [null, null, null]; // Cache para buffers invertidos
+
     let flexPitchCache = [{}, {}, {}];
-    let currentAudioSourceType = 'file';
+    window.currentAudioSourceType = 'file';
     let currentRecordingMode = "";
     
     let granulatorTimeoutId = null;
@@ -1570,7 +1943,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let isMainPlayerLoopEnabled = false;
     let isMicMuted = false;
     let loopZoomLevels = [1, 1, 1], loopPanOffsets = [0, 0, 0], loopIsDraggingForPan = [false, false, false], loopPanLastMouseX = [0, 0, 0];
-    let loopPlaybackAnimationIds = [null, null, null];
+    let loopPlaybackAnimationIds = [false, false, false];
     let loopPlaybackStartTimes = [0, 0, 0], loopNextStartTimeoutId = [null, null, null];
     
     const PLAY_SYMBOL = "▶", PAUSE_SYMBOL = "⏸", STOP_SYMBOL = "■", LOOP_ACTIVE_COLOR = "green";
@@ -1598,10 +1971,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let eqBandInstances = [];
     let eqBandDefaults = [];
     
-    let animationFrameId_visualizer;
+    let masterAnimationFrameId = null;
     let visualizerLastRenderTime = 0;
-    const VISUALIZER_FPS = 30;
-    const visualizerRenderInterval = 1000 / VISUALIZER_FPS;
+    const RENDER_FPS = 30;
+    const renderInterval = 1000 / RENDER_FPS;
     let isAnimationEnabled = true;
 
     let convolverNode, dryGainNode_reverb, wetGainNode_reverb, inputGainNode_reverb, reverbBooster;
@@ -1671,10 +2044,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const animationPowerSwitch = document.getElementById('animationPowerSwitch');
 
     const sidechainEnvelopePowerSwitch = document.getElementById('sidechainEnvelopePowerSwitch');
-    const sidechainThresholdDialEl = document.getElementById('sidechainThresholdDial');
-    const sidechainAttackDialEl = document.getElementById('sidechainAttackDial');
-    const sidechainReleaseDialEl = document.getElementById('sidechainReleaseDial');
-    const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
+    let sidechainThresholdDialEl, sidechainAttackDialEl, sidechainReleaseDialEl, sidechainAmountDialEl;
 
     const sourceSidechainSendSwitches = document.querySelectorAll('.source-sidechain-switch');
 
@@ -1691,8 +2061,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let loopIsSelectingFlags = [false, false, false];
     
     const loopSpeedControls = [document.getElementById('speedControl1'), document.getElementById('speedControl2'), document.getElementById('speedControl3')];
-    const loopFlexPitchSwitches = [document.getElementById('flexPitchSwitch1'), document.getElementById('flexPitchSwitch2'), document.getElementById('flexPitchSwitch3')];
-    const loopReverseSwitches = [document.getElementById('reverseSwitch1'), document.getElementById('reverseSwitch2'), document.getElementById('reverseSwitch3')];
+    
     const loopPlayPauseBtns = [document.getElementById('loopPlayPauseBtn1'), document.getElementById('loopPlayPauseBtn2'), document.getElementById('loopPlayPauseBtn3')];
     const loopVolumeFaders = [document.getElementById('loopVolume1'), document.getElementById('loopVolume2'), document.getElementById('loopVolume3')];
 
@@ -1723,14 +2092,12 @@ document.addEventListener('DOMContentLoaded', function() {
             this.distance = neutralRadius;
             this.x = centerX + Math.cos(this.angle) * this.distance;
             this.y = centerY + Math.sin(this.angle) * this.distance;
-            this.drawRadius = 10;
-            this.interactionRadius = 10;
+            this.q = 1.41;
+            this.drawRadius = 5 + 20 / this.q;
+            this.interactionRadius = this.drawRadius;
             this.color = 'rgba(255, 255, 255, 0.08)';
             this.wetLevel = 0;
             this.dryLevel = 0;
-            
-            // La creación del filterNode se mueve a un método separado
-            // para ser llamado DESPUÉS de que exista el audioContext.
             this.filterNode = null; 
         }
 
@@ -1738,7 +2105,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (audioContext && !this.filterNode) {
                 this.filterNode = audioContext.createBiquadFilter();
                 this.filterNode.type = 'peaking';
-                this.q = 1.41;
+                this.filterNode.Q.value = this.q;
             }
         }
 
@@ -1759,6 +2126,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.filterNode.gain.setTargetAtTime(clampedGain, audioContext.currentTime, 0.01);
             this.filterNode.Q.setTargetAtTime(this.q, audioContext.currentTime, 0.01);
             this.drawRadius = 5 + 20 / this.q;
+            this.interactionRadius = this.drawRadius;
         }
 
         draw() {
@@ -1895,10 +2263,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (typeof value === 'boolean' && (el.type === 'checkbox' || el.classList.contains('toggle-switch-input'))) {
-            if(el.checked !== value) {
-                el.checked = value;
-                el.dispatchEvent(new Event('change', { bubbles: true }));
+        if (typeof value === 'boolean' && (el.type === 'checkbox' || el.classList.contains('toggle-switch-input') || el.classList.contains('loop-action-btn'))) {
+            const currentState = el.type === 'checkbox' ? el.checked : el.getAttribute('aria-pressed') === 'true';
+            if(currentState !== value) {
+               el.click();
             }
             return;
         }
@@ -1995,15 +2363,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function drawInitialMessage(msg="Carga un archivo de audio para ver el espectro."){
         if(!spectrumCanvasCtx)return;
-        spectrumCanvasCtx.fillStyle='rgb(30,30,30)';
+        spectrumCanvasCtx.fillStyle='rgb(0,0,0)'; // CAMBIO: Fondo negro
         spectrumCanvasCtx.fillRect(0,0,spectrumCanvas.width,spectrumCanvas.height);
         spectrumCanvasCtx.fillStyle="white";
         spectrumCanvasCtx.textAlign="center";
         spectrumCanvasCtx.font="1rem Arial";
         spectrumCanvasCtx.fillText(msg,spectrumCanvas.width/2,spectrumCanvas.height/2);
-}
-function drawDrawnPaths(ctx, width, height) {
-        if (drawnPaths.length === 0) return;
+    }
+    function drawDrawnPaths(ctx, width, height) {
+        if (drawnPaths.length === 0 || drawnPaths.flat().length === 0) return;
+        
         const radius = height * 0.035;
 
         for (const path of drawnPaths) {
@@ -2023,7 +2392,7 @@ function drawDrawnPaths(ctx, width, height) {
     }
 
     function drawSpectralSynthVisuals() {
-        if (!spectrumCanvasCtx) return;
+        if (!spectrumCanvasCtx || !spectralSynthPowerSwitch.checked) return;
 
         if (lastSpectralCoords.active && isDrawModeActive) {
             const x = lastSpectralCoords.x * spectrumCanvas.width;
@@ -2039,10 +2408,7 @@ function drawDrawnPaths(ctx, width, height) {
         }
     }
 
-    // --- START: New Visualizer Core Functions ---
     function initParticleSystem() {
-        // La inicialización de partículas ahora ocurre en el worker.
-        // Solo reiniciamos los sparkles aquí.
         sparklesArray = [];
     }
 
@@ -2093,18 +2459,21 @@ function drawDrawnPaths(ctx, width, height) {
                 frequencyHistory.reduce((sum, frame) => sum + frame[i], 0) / HISTORY_LENGTH
             );
             const binToFreq = audioContext.sampleRate / analyserWet.fftSize;
+            let sparklesScheduledThisFrame = 0;
+            const SPARKLE_LIMIT = 15;
+
             for (let i = 0; i < frequencyDataWet.length; i++) {
                 const currentVal = frequencyDataWet[i], avgVal = averages[i];
                 if (currentVal > avgVal * 2.8 && currentVal > 80) {
                     const freq = i * binToFreq;
                     const resonanceData = getResonanceData(freq);
                     if (resonanceData) {
-                        // Limite de destellos ajustado a 15
-                        if (sparklesArray.length < 15) {
+                        if ((sparklesArray.length + sparklesScheduledThisFrame) < SPARKLE_LIMIT) {
                             const brightness = Math.min((currentVal - avgVal) / 100, 1.0);
                             setTimeout(() => {
                                 sparklesArray.push(new Sparkle(resonanceData.angle, brightness));
                             }, Math.random() * 200);
+                            sparklesScheduledThisFrame++;
                             triggerSpectralSynthFromSparkle(freq, brightness, 1.0);
                         }
                     }
@@ -2136,70 +2505,61 @@ function drawDrawnPaths(ctx, width, height) {
              band.dryLevel = levelDataDry.count > 0 ? (levelDataDry.total/levelDataDry.count)/255 : 0;
         });
 
-        eqBandInstances.forEach(band => { 
-            band.wetLevel *= 2; 
+        eqBandInstances.forEach((band, index) => { 
+            band.wetLevel *= 2;
+            if (index >= eqBandInstances.length - 2) {
+                band.wetLevel *= 1.20;
+            }
             band.dryLevel *= 2;
             if (band.wetLevel > 1.0) band.wetLevel = 1.0;
             if (band.dryLevel > 1.0) band.dryLevel = 1.0;
         });
     }
     
-    // ESTA ES LA NUEVA FUNCIÓN DE ANIMACIÓN OPTIMIZADA
-    function animateVisualizer(currentTime) {
-        animationFrameId_visualizer = requestAnimationFrame(animateVisualizer);
-
-        // Asegurarse de que el canvas off-screen tenga el tamaño correcto
-        if (offscreenCanvas.width !== spectrumCanvas.width || offscreenCanvas.height !== spectrumCanvas.height) {
-            offscreenCanvas.width = spectrumCanvas.width;
-            offscreenCanvas.height = spectrumCanvas.height;
-        }
-
+    function animateVisualizer() {
         if (!isAnimationEnabled) {
-            if (currentTime - visualizerLastRenderTime > 250) {
-                spectrumCanvasCtx.fillStyle = 'rgb(30, 30, 30)';
-                spectrumCanvasCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-                visualizerLastRenderTime = currentTime;
+             if (masterAnimationFrameId) {
+                cancelAnimationFrame(masterAnimationFrameId);
+                masterAnimationFrameId = null;
             }
+            spectrumCanvasCtx.clearRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
             return;
         }
 
-        if (currentTime - visualizerLastRenderTime < visualizerRenderInterval) {
-            return;
-        }
-        visualizerLastRenderTime = currentTime;
-
-        if (!audioContext || !spectrumCanvasCtx) {
-            return;
-        }
+        spectrumCanvasCtx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // CAMBIO: Fondo negro con un poco de alpha para estela
+        spectrumCanvasCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
 
         analyzeFrequencies();
 
-        // Envía los datos de las bandas al worker para que calcule el siguiente frame
         if (animationWorker && eqBandInstances.length > 0) {
             const bandsData = eqBandInstances.map(b => ({
                 x: b.x, y: b.y, wetLevel: b.wetLevel, dryLevel: b.dryLevel
             }));
             animationWorker.postMessage({ type: 'update', payload: { eqBands: bandsData } });
         }
-
-        // --- LÓGICA DE DIBUJO OPTIMIZADA (Off-Screen Canvas) ---
-        // 1. Copia el frame visible actual al canvas oculto
-        offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        offscreenCtx.drawImage(spectrumCanvas, 0, 0);
-
-        // 2. Limpia el canvas visible con un color sólido (muy rápido)
-        spectrumCanvasCtx.fillStyle = 'rgb(30, 30, 30)';
-        spectrumCanvasCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-
-        // 3. Dibuja el frame anterior (ahora en el canvas oculto) con opacidad para el efecto de estela
-        spectrumCanvasCtx.globalAlpha = 0.92; // Ajusta este valor para la longitud de la estela
-        spectrumCanvasCtx.drawImage(offscreenCanvas, 0, 0);
-        spectrumCanvasCtx.globalAlpha = 1.0;
-
-        // 4. Dibuja el nuevo estado de las partículas usando los datos del worker
+        
+        drawDrawnPaths(spectrumCanvasCtx, spectrumCanvas.width, spectrumCanvas.height);
+        
         if (lastParticleData) {
-            // Dibuja las líneas de sombra
-            spectrumCanvasCtx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+            spectrumCanvasCtx.globalCompositeOperation = 'destination-out';
+            
+            spectrumCanvasCtx.lineWidth = 2.5; // A bit thicker for a better erase effect
+            spectrumCanvasCtx.beginPath();
+            for (let i = 0; i < lastParticleData.lines.length; i += 5) {
+                const opacity = Math.min(lastParticleData.lines[i+4], 1.0);
+                if (opacity > 0.05) {
+                    spectrumCanvasCtx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                    spectrumCanvasCtx.moveTo(lastParticleData.lines[i], lastParticleData.lines[i+1]);
+                    spectrumCanvasCtx.lineTo(lastParticleData.lines[i+2], lastParticleData.lines[i+3]);
+                }
+            }
+            spectrumCanvasCtx.stroke();
+            
+            spectrumCanvasCtx.globalCompositeOperation = 'source-over';
+        }
+
+        if (lastParticleData) {
+            spectrumCanvasCtx.strokeStyle = 'rgba(100, 100, 100, 0.65)';
             spectrumCanvasCtx.lineWidth = 1;
             spectrumCanvasCtx.shadowBlur = 0;
             spectrumCanvasCtx.beginPath();
@@ -2209,14 +2569,16 @@ function drawDrawnPaths(ctx, width, height) {
             }
             spectrumCanvasCtx.stroke();
 
-            // Dibuja las líneas principales
             spectrumCanvasCtx.lineWidth = 1.5;
             spectrumCanvasCtx.shadowBlur = 15;
             spectrumCanvasCtx.shadowColor = glowColor;
             spectrumCanvasCtx.beginPath();
             for (let i = 0; i < lastParticleData.lines.length; i += 5) {
-                const opacity = Math.min(lastParticleData.lines[i+4], 1.0);
-                if (opacity > 0.05) { // Solo dibuja líneas visibles
+                let opacity = lastParticleData.lines[i+4];
+                opacity = Math.pow(opacity, 0.75) * 1.5;
+                opacity = Math.min(opacity, 1.0);
+
+                if (opacity > 0.05) {
                     spectrumCanvasCtx.strokeStyle = `rgba(255,0,150,${opacity})`;
                     spectrumCanvasCtx.moveTo(lastParticleData.lines[i], lastParticleData.lines[i+1]);
                     spectrumCanvasCtx.lineTo(lastParticleData.lines[i+2], lastParticleData.lines[i+3]);
@@ -2226,17 +2588,23 @@ function drawDrawnPaths(ctx, width, height) {
             spectrumCanvasCtx.shadowBlur = 0;
         }
         
-        // El resto de la lógica de dibujo se mantiene igual
         for (let i = sparklesArray.length - 1; i >= 0; i--) {
             const s = sparklesArray[i];
             s.updateAndDraw();
             if (s.lifespan <= 0) { sparklesArray.splice(i, 1); }
         }
 
-        drawDrawnPaths(spectrumCanvasCtx, spectrumCanvas.width, spectrumCanvas.height);
         if(eqBandInstances) eqBandInstances.forEach(b => b.draw());
         drawSpectralSynthVisuals();
     }
+    
+    window.handleEasyModeEnter = function() {
+        if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && isDrawModeActive && !isSpectralSynthActive) {
+            if (spectrumCanvas && spectrumCanvas.matches(':hover')) {
+                startSpectralSynth();
+            }
+        }
+    };
 
     function setupCanvasEventListeners() {
         if (!spectrumCanvas) return;
@@ -2244,11 +2612,8 @@ function drawDrawnPaths(ctx, width, height) {
         if(animationPowerSwitch) {
             animationPowerSwitch.addEventListener('change', (e) => {
                 isAnimationEnabled = e.target.checked;
-                if(!isAnimationEnabled) {
-                    setTimeout(() => {
-                        spectrumCanvasCtx.fillStyle = 'rgb(30, 30, 30)';
-                        spectrumCanvasCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-                    }, 50);
+                 if (isAnimationEnabled && !masterAnimationFrameId) {
+                    masterRenderLoop();
                 }
             });
         }
@@ -2348,6 +2713,9 @@ function drawDrawnPaths(ctx, width, height) {
                  const lastPath = drawnPaths[drawnPaths.length - 1];
                  if(lastPath) lastPath.push({ x: lastSpectralCoords.x, y: lastSpectralCoords.y, time });
                  updateSpectralSynthFilters();
+                 if (!isSpectralSynthActive) {
+                    startSpectralSynth();
+                 }
             }
              
             if (isSpectralSynthActive && !isDrawingPath && pathPlaybackRequestID === null && isDrawModeActive) {
@@ -2363,13 +2731,17 @@ function drawDrawnPaths(ctx, width, height) {
                     console.log(`[SYNTH-MODE] Modo de Dibujo: Finalizado. Grabados ${lastPath ? lastPath.length : 0} puntos en el último trazo.`);
                     if (lastPath && lastPath.length > 1) {
                         startPathPlayback();
+                    } else {
+                        if (!spectrumCanvas.matches(':hover')) {
+                            stopSpectralSynth();
+                        }
                     }
                 }
                 if (selectedBand) {
                     selectedBand = null;
                     selectedBandIndex = -1;
-                    isQAdjusting = false;
                 }
+                isQAdjusting = false;
             }
         });
         
@@ -2386,8 +2758,83 @@ function drawDrawnPaths(ctx, width, height) {
 
     async function tryGetDeviceSampleRate(devId){try{const c={audio:{video:false}};if(devId&&devId!=="default")c.audio.deviceId={exact:devId};const s=await navigator.mediaDevices.getUserMedia(c),t=s.getAudioTracks()[0];let sR=t?.getSettings()?.sampleRate;s.getTracks().forEach(tr=>tr.stop());if(sR)return sR;}catch(err){}return undefined;}
 
+    function masterRenderLoop(currentTime) {
+        masterAnimationFrameId = requestAnimationFrame(masterRenderLoop);
+
+        if (currentTime - visualizerLastRenderTime < renderInterval) {
+            return;
+        }
+        visualizerLastRenderTime = currentTime;
+
+        animateVisualizer();
+        updateMainPlayerTimelineDisplay();
+        updateMasterRecordingTimelineDisplay();
+        
+        for (let i = 0; i < 3; i++) {
+            updateLoopCanvasPlayhead(i);
+        }
+    }
+    
+    function updateLoopCanvasPlayhead(loopIndex) {
+        if (!isLoopRealtimePlaying[loopIndex] || !loopDedicatedBuffers[loopIndex]) { // Usa el buffer dedicado para saber si hay algo que reproducir
+            if (loopPlaybackAnimationIds[loopIndex]) {
+                loopPlaybackAnimationIds[loopIndex] = false; 
+                drawLoopWaveformVisuals(loopIndex, -1);
+            }
+            return;
+        }
+        loopPlaybackAnimationIds[loopIndex] = true;
+
+        const selection = loopSelections[loopIndex];
+        const speed = parseFloat(loopSpeedControls[loopIndex].value);
+        const isReversed = loopReverseBtns[loopIndex].getAttribute('aria-pressed') === 'true';
+        
+        // La duración del loop ahora es la del buffer dedicado
+        let loopDuration = loopDedicatedBuffers[loopIndex].duration;
+        if (loopDuration <= 0) loopDuration = 1;
+
+        const elapsedTime = audioContext.currentTime - loopPlaybackStartTimes[loopIndex];
+        const scaledElapsedTime = elapsedTime * speed;
+        const currentPosInLoop = (scaledElapsedTime % loopDuration) / loopDuration;
+        
+        let finalProgress = currentPosInLoop;
+        if(isReversed) {
+            finalProgress = 1.0 - currentPosInLoop;
+        }
+        
+        // La posición de la cabeza lectora se calcula sobre el buffer principal para el dibujado
+        const playheadPositionInBuffer = selection.start + finalProgress * (selection.end - selection.start);
+        
+        drawLoopWaveformVisuals(loopIndex, playheadPositionInBuffer);
+    }
+
+    function initializeAudioOnFirstInteraction() {
+        const startButton = document.getElementById('startButton');
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        function resumeContext() {
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log("AudioContext resumed successfully by user interaction.");
+                    if(loadingOverlay) {
+                        loadingOverlay.style.opacity = '0';
+                        setTimeout(() => loadingOverlay.style.display = 'none', 500);
+                    }
+                });
+            } else if (audioContext) {
+                 if(loadingOverlay) {
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => loadingOverlay.style.display = 'none', 500);
+                }
+            }
+        }
+        
+        startButton.addEventListener('click', resumeContext);
+    }
+
+
     window.addEventListener('load', async () => {
-        if(typeof SoundTouch==='undefined'||typeof SimpleFilter==='undefined')console.warn("SoundTouchJS no parece estar cargado. Flex Pitch no funcionará.");
+        if(typeof SoundTouch==='undefined'||typeof SimpleFilter==='undefined')console.warn("SoundTouchJS no parece estar cargado. Flex Pitch no funcionará correctamente sin el worker.");
         
         let targetSampleRate; 
         await initAudioDevicesList();
@@ -2418,45 +2865,88 @@ function drawDrawnPaths(ctx, width, height) {
             }
         }
         
-        if (audioContext.state === 'suspended') {
-            console.log("AudioContext está suspendido. Esperando interacción del usuario para resumir.");
-        }
+        initializeAudioOnFirstInteraction();
 
         if(spectrumCanvas){
             spectrumCanvasCtx=spectrumCanvas.getContext('2d');
-            // La función resizeCanvas ahora está separada para ser llamada cuando sea necesario.
+            offscreenCanvas.width = spectrumCanvas.width;
+            offscreenCanvas.height = spectrumCanvas.height;
+            offscreenCtx = offscreenCanvas.getContext('2d');
+
             function resizeCanvas() {
+                const oldWidth = spectrumCanvas.width;
+                const oldHeight = spectrumCanvas.height;
+                const oldCenterX = oldWidth / 2;
+                const oldCenterY = oldHeight / 2;
+                const oldNeutralRadius = Math.min(oldWidth, oldHeight) / 3.5 || 1;
+
+                let bandStates = [];
+                if (eqBandInstances && eqBandInstances.length > 0) {
+                    bandStates = eqBandInstances.map(band => ({
+                        angle: Math.atan2(band.y - oldCenterY, band.x - oldCenterX),
+                        distanceRatio: Math.sqrt(Math.pow(band.x - oldCenterX, 2) + Math.pow(band.y - oldCenterY, 2)) / oldNeutralRadius,
+                        q: band.q
+                    }));
+                }
+
                 const dpr = window.devicePixelRatio || 1;
                 const rect = spectrumCanvas.getBoundingClientRect();
-                spectrumCanvas.width = rect.width * dpr;
-                spectrumCanvas.height = rect.height * dpr;
                 
+                let renderScale = 1.0;
+                if (document.body.classList.contains('easy-mode-active')) {
+                    renderScale = 0.75; 
+                }
+
+                spectrumCanvas.width = rect.width * dpr * renderScale;
+                spectrumCanvas.height = rect.height * dpr * renderScale;
+                
+                offscreenCanvas.width = spectrumCanvas.width;
+                offscreenCanvas.height = spectrumCanvas.height;
+
+                if (animationWorker) {
+                    animationWorker.postMessage({
+                        type: 'resize',
+                        payload: {
+                            width: spectrumCanvas.width,
+                            height: spectrumCanvas.height
+                        }
+                    });
+                }
+
+                const newCenterX = spectrumCanvas.width / 2;
+                const newCenterY = spectrumCanvas.height / 2;
+                const newNeutralRadius = Math.min(spectrumCanvas.width, spectrumCanvas.height) / 3.5;
+
                 initEQBands();
                 initParticleSystem();
 
-                // --- INICIO DE LA SOLUCIÓN ---
-                // 1. Asegurarse de que los nuevos objetos EQBand tengan sus BiquadFilterNode creados.
                 if (audioContext && eqBandInstances) {
                     eqBandInstances.forEach(band => band.createFilter());
                 }
-                // 2. Volver a construir la cadena de audio para usar los nuevos nodos de filtro.
+                
+                if (bandStates.length > 0) {
+                    eqBandInstances.forEach((band, i) => {
+                        const state = bandStates[i];
+                        if (state) {
+                            const newDistance = state.distanceRatio * newNeutralRadius;
+                            band.x = newCenterX + Math.cos(state.angle) * newDistance;
+                            band.y = newCenterY + Math.sin(state.angle) * newDistance;
+                            band.q = state.q;
+                        }
+                    });
+                }
+                
                 createMainAudioChain();
-                // --- FIN DE LA SOLUCIÓN ---
 
                 if(eqBandInstances) {
-                    const centerX = spectrumCanvas.width / 2;
-                    const centerY = spectrumCanvas.height / 2;
-                    const neutralRadius = Math.min(spectrumCanvas.width, spectrumCanvas.height) / 3.5;
-                    // Actualiza los valores de los nuevos filtros (esto ya estaba y es correcto)
-                    eqBandInstances.forEach(b => b.updateFilter(centerX, centerY, neutralRadius));
+                    eqBandInstances.forEach(b => b.updateFilter(newCenterX, newCenterY, newNeutralRadius));
                 }
-                if (!animationFrameId_visualizer) { drawInitialMessage(); }
+                if (!masterAnimationFrameId) { drawInitialMessage(); }
             }
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
         } else console.error("Spectrum canvas no encontrado!");
 
-        // --- INICIALIZACIÓN DE NODOS DE AUDIO ---
         gainNode = audioContext.createGain();
         micGainNode = audioContext.createGain();
         micBooster = audioContext.createGain();
@@ -2505,7 +2995,7 @@ function drawDrawnPaths(ctx, width, height) {
         spectralSynthBooster = audioContext.createGain();
         spectralSynthBooster.gain.value = 1.35;
         spectralSynthBoostGain = audioContext.createGain();
-        spectralSynthBoostGain.gain.value = 6.0;
+        spectralSynthBoostGain.gain.value = 8.1; // Aumento del 35% (6.0 * 1.35)
         granulatorFilter=audioContext.createBiquadFilter();
         granulatorFilter.type="lowpass";
         granulatorFilter.Q.value=1;
@@ -2528,17 +3018,68 @@ function drawDrawnPaths(ctx, width, height) {
         frequencyDataDry = new Uint8Array(analyserDry.frequencyBinCount);
         frequencyHistory = [];
         
-        // CORRECCIÓN DEL BUG DEL EQ: Crear los filtros DESPUÉS de tener el audioContext
         eqBandInstances.forEach(band => band.createFilter());
         
-        // --- ASIGNACIÓN DE EVENTOS Y CONFIGURACIÓN FINAL ---
+        if (micMuteBtn) {
+            micMuteBtn.addEventListener('click', () => {
+                isMicMuted = !isMicMuted;
+                micMuteBtn.setAttribute('aria-pressed', String(isMicMuted));
+                if (micGainNode && audioContext) {
+                    const newGain = isMicMuted ? 0 : parseFloat(micVolumeFader.value);
+                    micGainNode.gain.setTargetAtTime(newGain, audioContext.currentTime, 0.01);
+                }
+            });
+        }
+        
+        const setupAndStartRecording = (mode) => {
+            if (!audioContext) return;
+            if (audioContext.state === 'suspended') audioContext.resume();
+
+            if (!isRecorderSetup) {
+                setupMainAudioRecorder();
+                isRecorderSetup = true;
+            }
+
+            if (!mainAudioRecorder) {
+                console.error("MediaRecorder no está inicializado.");
+                return;
+            }
+
+            mainRecordedChunks = [];
+            currentRecordingMode = mode;
+            try {
+                mainAudioRecorder.start();
+                enableRecordingButtons();
+            } catch (e) {
+                console.error(`Error al iniciar grabación en modo ${mode}:`, e);
+                enableRecordingButtons();
+            }
+        };
+
+        if (recordBtn) recordBtn.addEventListener('click', () => setupAndStartRecording("record"));
+        if (appendRecBtn) appendRecBtn.addEventListener('click', () => { if(mainRecorderAudioBuffer) setupAndStartRecording("append"); });
+        if (overdubNowBtn) overdubNowBtn.addEventListener('click', () => { if(mainRecorderAudioBuffer) setupAndStartRecording("overdub"); });
+        
         if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPauseFilePlayer);
         const maxChannels = 8;
         splitter = audioContext.createChannelSplitter(maxChannels);
         if (micVolumeFader) micVolumeFader.addEventListener('input', () => { if (micGainNode && audioContext) micGainNode.gain.setTargetAtTime(isMicMuted ? 0 : parseFloat(micVolumeFader.value), audioContext.currentTime, 0.01); });
         if (volumeFader) volumeFader.addEventListener('input', () => { if (gainNode && audioContext) gainNode.gain.setTargetAtTime(parseFloat(volumeFader.value), audioContext.currentTime, 0.01); });
         if (spectralSynthVolumeFader) spectralSynthVolumeFader.addEventListener('input', () => { if(spectralSynthVolumeGain) spectralSynthVolumeGain.gain.value = parseFloat(spectralSynthVolumeFader.value); });
-        if (granulatorVolumeFader) granulatorVolumeFader.addEventListener('input', () => { if(granulatorVolumeGain && audioContext) granulatorVolumeGain.gain.setTargetAtTime(parseFloat(granulatorVolumeFader.value), audioContext.currentTime, 0.01); });
+        
+        const easyModeGranulatorVolume = document.getElementById('easyModeGranulatorVolume');
+        function syncGranulatorVolume(newValue) {
+            if (granulatorVolumeGain && audioContext) {
+                granulatorVolumeGain.gain.setTargetAtTime(newValue, audioContext.currentTime, 0.01);
+            }
+            if (granulatorVolumeFader.value !== newValue) granulatorVolumeFader.value = newValue;
+            if (easyModeGranulatorVolume.value !== newValue) easyModeGranulatorVolume.value = newValue;
+            document.getElementById('granulatorVolumeValueInput').value = parseFloat(newValue).toFixed(2);
+        }
+        granulatorVolumeFader.addEventListener('input', (e) => syncGranulatorVolume(e.target.value));
+        easyModeGranulatorVolume.addEventListener('input', (e) => syncGranulatorVolume(e.target.value));
+
+
         const masterVolumeFader = document.getElementById('masterVolumeFader');
         const masterVolValueDisplaySpan = document.getElementById('masterVolumeValue');
         if (masterVolumeFader) {
@@ -2556,7 +3097,6 @@ function drawDrawnPaths(ctx, width, height) {
         createSpectralSynthFilterBank();
         createMainAudioChain();
         setupAudioFileLoader();
-        setupMainAudioRecorder();
         setupMasterRecorder();
         setupMidi();
         setupAutomationMemories();
@@ -2611,7 +3151,7 @@ function drawDrawnPaths(ctx, width, height) {
                 }
             }
         });
-        updateMainPlayerTimelineDisplay(); updateMasterRecordingTimelineDisplay();
+        
         attachLoopCanvasEventsAll();
         setupGlobalKeyListeners();
         setupSidechainEventListeners();
@@ -2629,21 +3169,8 @@ function drawDrawnPaths(ctx, width, height) {
                 checkbox.addEventListener('change', (e) => { if (targetNode && audioContext) targetNode.gain.setTargetAtTime(e.target.checked ? 1.0 : 0.0, audioContext.currentTime, 0.01); });
             });
         }
-        const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
-        const visualizerCasilla = document.getElementById('reverb-eq-visualizer-casilla');
-        function toggleTheaterMode() {
-            const isInTheaterMode = visualizerCasilla.classList.toggle('theater-mode');
-            document.body.classList.toggle('theater-mode-active', isInTheaterMode);
-            toggleFullscreenBtn.textContent = isInTheaterMode ? "Salir de Fácil" : "Modo fácil";
-            setTimeout(() => {
-                if (spectrumCanvas) {
-                    const resizeEvent = new Event('resize');
-                    window.dispatchEvent(resizeEvent);
-                }
-            }, 50);
-        }
-        if (toggleFullscreenBtn && visualizerCasilla) toggleFullscreenBtn.addEventListener('click', toggleTheaterMode);
-        requestAnimationFrame(animateVisualizer);
+        
+        masterRenderLoop();
         console.log("SUSPIRA inicialización de UI y Audio completada.");
         loadInitialAudio('Output 1-2.wav');
     });
@@ -2672,6 +3199,7 @@ function drawDrawnPaths(ctx, width, height) {
         if (masterGain) nodesToClean.push(masterGain);
         eqBandInstances.forEach(band => { if (band && band.filterNode) nodesToClean.push(band.filterNode); });
         nodesToClean.forEach(node => { if (node && typeof node.disconnect === 'function') try { node.disconnect(); } catch (e) {} });
+        
         if (spectralSynthBoostGain && spectralSynthVolumeGain) spectralSynthBoostGain.connect(spectralSynthVolumeGain);
         spectralSynthVolumeGain.connect(spectralSynthBooster);
         gainNode.connect(filePlayerDrySend);
@@ -2701,8 +3229,10 @@ function drawDrawnPaths(ctx, width, height) {
         wetGainNode_reverb.connect(reverbBooster);
         reverbBooster.connect(analyserWet);
         analyserWet.connect(finalOutputGain);
+        
         gainNode.connect(recordSourceMixer);
         micBooster.connect(recordSourceMixer);
+
         gainNode.connect(sourceSidechainSendGain);
         micBooster.connect(sourceSidechainSendGain);
         sourceSidechainSendGain.connect(sidechainSummingGain);
@@ -2721,28 +3251,55 @@ function drawDrawnPaths(ctx, width, height) {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(e_reader) { processArrayBuffer(e_reader.target.result); };
+        reader.onload = function(e_reader) { processArrayBuffer(e_reader.target.result, false); };
         reader.onerror = function() { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer archivo."); drawInitialMessage("Error al leer archivo."); };
         reader.readAsArrayBuffer(file);
     }
-    function processArrayBuffer(arrayBuffer) {
+    function processArrayBuffer(arrayBuffer, isInitial = false) { 
         if (!arrayBuffer || arrayBuffer.byteLength === 0) { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer el archivo."); return; }
-        if (isMainPlayerPlaying && currentSourceNode) { try { currentSourceNode.stop(); } catch (e) {} isMainPlayerPlaying = false; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; if (mainPlayerAnimationFrameId) cancelAnimationFrame(mainPlayerAnimationFrameId); }
+        if (isMainPlayerPlaying && currentSourceNode) { try { currentSourceNode.stop(); } catch (e) {} isMainPlayerPlaying = false; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; }
         mainPlayerStartOffset = 0; audioBuffer = null; if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
         if (loaderOverlay) loaderOverlay.classList.remove('hidden');
         drawInitialMessage("Procesando audio...");
         audioContext.decodeAudioData(arrayBuffer, function(decodedBuffer) {
             audioBuffer = decodedBuffer; mainPlayerDuration = audioBuffer.duration;
-            if (timeline) { timeline.max = mainPlayerDuration; localUpdateRangeParamProgrammatic(timeline, 0); }
-            if (currentTimeDisplay) currentTimeDisplay.textContent = formatTime(0);
+            if (timeline) { timeline.max = mainPlayerDuration; }
+            updateMainPlayerTimelineDisplay(true); // Force UI update
             if (playPauseBtn) { playPauseBtn.disabled = false; playPauseBtn.textContent = PLAY_SYMBOL; }
             if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
             isMainPlayerPlaying = false; mainPlayerStartOffset = 0;
             startReverbSystemWithBuffer(audioBuffer);
-            updateMainPlayerTimelineDisplay(true);
             if (loaderOverlay) loaderOverlay.classList.add('hidden');
-            updateLoopAndGranulatorWithNewBuffer(decodedBuffer);
-            drawMainRecordedWaveform();
+
+            if (document.body.classList.contains('easy-mode-active') || isInitial) {
+                updateLoopAndGranulatorWithNewBuffer(decodedBuffer);
+                drawMainRecordedWaveform();
+            }
+            
+            if (isInitial) {
+                const spectralSynthPowerSwitchEl = document.getElementById('spectralSynthPowerSwitch');
+                if (spectralSynthPowerSwitchEl && !spectralSynthPowerSwitchEl.checked) {
+                    spectralSynthPowerSwitchEl.checked = true;
+                    spectralSynthPowerSwitchEl.dispatchEvent(new Event('change', { bubbles: true }));
+                    console.log("Sintetizador Espectral activado por defecto al cargar audio inicial.");
+                }
+                const startButton = document.getElementById('startButton');
+                const video = document.querySelector('#loading-overlay video');
+                if (video) video.style.display = 'none';
+                if (startButton) {
+                    startButton.style.display = 'block';
+                    startButton.style.opacity = '0';
+                    setTimeout(() => startButton.style.opacity = '1', 100);
+                }
+
+            }
+
+            if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && isDrawModeActive && !isSpectralSynthActive) {
+                if (spectrumCanvas && spectrumCanvas.matches(':hover')) {
+                    startSpectralSynth();
+                }
+            }
+            
         }, function(error) {
             console.error("Error decodificando audio:", error); alert("Error al decodificar. Formato no compatible?");
             audioBuffer = null;
@@ -2755,35 +3312,37 @@ function drawDrawnPaths(ctx, width, height) {
     async function loadInitialAudio(url) {
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`No se pudo cargar el audio: ${response.statusText}`);
+            if (!response.ok) {
+                 throw new Error(`No se pudo cargar el audio inicial: ${response.statusText}`);
+            }
             const arrayBuffer = await response.arrayBuffer();
-            processArrayBuffer(arrayBuffer);
+            processArrayBuffer(arrayBuffer, true); 
         } catch (error) {
             console.error("Error al cargar el audio inicial:", error);
-            drawInitialMessage("No se encontró audio inicial. Carga un archivo.");
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if(loadingOverlay) loadingOverlay.style.display = 'none';
+            drawInitialMessage("No se encontró audio. Carga un archivo.");
         }
     }
     function togglePlayPauseFilePlayer() {
         if (!audioContext) return;
-        if (audioContext.state === 'suspended') { audioContext.resume().then(() => { if (isMainPlayerPlaying) pauseAudioFilePlayer(); else playAudioFilePlayer(); }); }
-        else { if (isMainPlayerPlaying) pauseAudioFilePlayer(); else playAudioFilePlayer(); }
+        if (audioContext.state === 'suspended') { audioContext.resume(); }
+        if (isMainPlayerPlaying) pauseAudioFilePlayer(); else playAudioFilePlayer();
     }
     function playAudioFilePlayer() {
-        if (!animationFrameId_visualizer) { requestAnimationFrame(animateVisualizer); }
         if (!audioBuffer || isMainPlayerPlaying || !audioContext) return;
         if (currentSourceNode) { try { currentSourceNode.disconnect(); } catch (e) {} }
         currentSourceNode = audioContext.createBufferSource();
         currentSourceNode.buffer = audioBuffer;
         currentSourceNode.loop = isMainPlayerLoopEnabled;
         currentSourceNode.connect(gainNode);
-        currentSourceNode.onended = () => { if (currentSourceNode && !currentSourceNode.loop && isMainPlayerPlaying) { isMainPlayerPlaying = false; mainPlayerStartOffset = 0; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; updateMainPlayerTimelineDisplay(true); } };
+        currentSourceNode.onended = () => { if (currentSourceNode && !currentSourceNode.loop && isMainPlayerPlaying) { isMainPlayerPlaying = false; mainPlayerStartOffset = 0; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; } };
         try {
             if (mainPlayerStartOffset >= mainPlayerDuration) mainPlayerStartOffset = 0;
             currentSourceNode.start(0, mainPlayerStartOffset);
             mainPlayerStartTime = audioContext.currentTime;
             isMainPlayerPlaying = true;
             if (playPauseBtn) playPauseBtn.textContent = PAUSE_SYMBOL;
-            updateMainPlayerTimelineDisplay();
         } catch (e) {
             console.error("Error al iniciar sourceNode:", e);
             isMainPlayerPlaying = false;
@@ -2799,9 +3358,29 @@ function drawDrawnPaths(ctx, width, height) {
         mainPlayerStartOffset = Math.max(0, mainPlayerStartOffset);
         isMainPlayerPlaying = false;
         if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL;
-        if (mainPlayerAnimationFrameId) { cancelAnimationFrame(mainPlayerAnimationFrameId); mainPlayerAnimationFrameId = null; }
-        updateMainPlayerTimelineDisplay(true);
         currentSourceNode = null;
+    }
+    function updateMainPlayerTimelineDisplay(forceUpdate = false) {
+        if (!isMainPlayerPlaying && !forceUpdate) return;
+        
+        let currentTimeInTrack = mainPlayerStartOffset;
+        if (isMainPlayerPlaying && audioBuffer && audioContext && currentSourceNode) {
+            currentTimeInTrack = mainPlayerStartOffset + (audioContext.currentTime - mainPlayerStartTime);
+            if (isMainPlayerLoopEnabled && audioBuffer.duration > 0) {
+                currentTimeInTrack %= audioBuffer.duration;
+            } else {
+                currentTimeInTrack = Math.max(0, Math.min(currentTimeInTrack, mainPlayerDuration));
+            }
+        }
+        
+        if (timeline) { 
+            timeline.value = currentTimeInTrack; 
+            const numInput = document.getElementById('timelineValueInput'); 
+            if (numInput) numInput.value = parseFloat(currentTimeInTrack).toFixed(1); 
+        }
+        if (currentTimeDisplay) { 
+            currentTimeDisplay.textContent = formatTime(currentTimeInTrack); 
+        }
     }
     if (exportToBuffersBtn) {
         exportToBuffersBtn.addEventListener('click', () => {
@@ -2820,11 +3399,33 @@ function drawDrawnPaths(ctx, width, height) {
             tempStream.getTracks().forEach(track => track.stop());
             const devices = await navigator.mediaDevices.enumerateDevices();
             const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
-            if (micSelect) micSelect.innerHTML = '';
-            if (audioInputDevices.length === 0) { if (micSelect) { micSelect.appendChild(new Option("No hay micrófonos", "")); micSelect.disabled = true; } return; }
-            if (micSelect) { micSelect.disabled = false; audioInputDevices.forEach((device, index) => { micSelect.appendChild(new Option(device.label || `Micrófono ${index + 1}`, device.deviceId)); }); }
+            
+            const mainMicSelect = document.getElementById('micSelect');
+            const easyModeMicSelect = document.getElementById('easyModeMicSelect');
+            
+            if (mainMicSelect) mainMicSelect.innerHTML = '';
+            if (easyModeMicSelect) easyModeMicSelect.innerHTML = '';
+
+            if (audioInputDevices.length === 0) {
+                 const noMicOption = new Option("No hay micrófonos", "");
+                 if(mainMicSelect) { mainMicSelect.appendChild(noMicOption.cloneNode(true)); mainMicSelect.disabled = true; }
+                 if(easyModeMicSelect) { easyModeMicSelect.appendChild(noMicOption); easyModeMicSelect.disabled = true; }
+                 return;
+            }
+            
+            if (mainMicSelect) mainMicSelect.disabled = false;
+            if (easyModeMicSelect) easyModeMicSelect.disabled = false;
+
+            audioInputDevices.forEach((device, index) => {
+                const option = new Option(device.label || `Micrófono ${index + 1}`, device.deviceId);
+                if (mainMicSelect) mainMicSelect.appendChild(option.cloneNode(true));
+                if (easyModeMicSelect) easyModeMicSelect.appendChild(option);
+            });
         } catch (err) {
-            if (micSelect) { micSelect.innerHTML = '<option value="">Error al listar / Sin permiso</option>'; micSelect.disabled = true; }
+            const errorOption = new Option("Error al listar / Sin permiso", "");
+            if(micSelect) { micSelect.innerHTML = ''; micSelect.appendChild(errorOption.cloneNode(true)); micSelect.disabled = true; }
+            if(document.getElementById('easyModeMicSelect')) { document.getElementById('easyModeMicSelect').innerHTML = ''; document.getElementById('easyModeMicSelect').appendChild(errorOption); document.getElementById('easyModeMicSelect').disabled = true; }
+
             if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") { alert("Permiso para acceder al micrófono denegado."); }
             console.error("Error al inicializar lista de dispositivos de audio:", err);
         }
@@ -2834,10 +3435,8 @@ function drawDrawnPaths(ctx, width, height) {
         if (currentSourceNode) { try { if (typeof currentSourceNode.stop === 'function') currentSourceNode.stop(); currentSourceNode.disconnect(); } catch (e) {} currentSourceNode = null; }
         isMainPlayerPlaying = false;
         if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL;
-        if (mainPlayerAnimationFrameId) { cancelAnimationFrame(mainPlayerAnimationFrameId); mainPlayerAnimationFrameId = null; }
     }
     async function startMicAudio(deviceId) {
-        if (!animationFrameId_visualizer) { requestAnimationFrame(animateVisualizer); }
         if (!audioContext) return false;
         if (audioContext.state === 'suspended') { try { await audioContext.resume(); } catch (e) { return false; } }
         stopCurrentAudioSourceLogic();
@@ -2866,47 +3465,47 @@ function drawDrawnPaths(ctx, width, height) {
             return true;
         } catch (err) {
             alert(`Error al iniciar micrófono: ${err.message}.`);
-            currentAudioSourceType = 'file';
+            window.currentAudioSourceType = 'file';
             toggleSourcePanels();
             return false;
         }
     }
-    function updateSourceButtonUIAfterDOMChange() { if (sourceToggleButton) { sourceToggleButton.setAttribute('aria-label', currentAudioSourceType === 'file' ? 'Fuente: Archivo, cambiar a Micrófono' : 'Fuente: Micrófono, cambiar a Archivo'); } }
-    function toggleSourcePanels() { if (micPanel) micPanel.style.display = currentAudioSourceType === 'mic' ? 'block' : 'none'; if (filePanel) filePanel.style.display = currentAudioSourceType === 'file' ? 'block' : 'none'; updateSourceButtonUIAfterDOMChange(); }
+    function updateSourceButtonUIAfterDOMChange() { 
+        if (sourceToggleButton) { sourceToggleButton.setAttribute('aria-label', window.currentAudioSourceType === 'file' ? 'Fuente: Archivo, cambiar a Micrófono' : 'Fuente: Micrófono, cambiar a Archivo'); } 
+        const easyModeAudioFileBtn = document.getElementById('easyModeAudioFileBtn');
+        const easyModeMicSelect = document.getElementById('easyModeMicSelect');
+        const easyModeSourceToggleBtn = document.getElementById('easyModeSourceToggleBtn');
+        if(easyModeAudioFileBtn && easyModeMicSelect && easyModeSourceToggleBtn) {
+            if (window.currentAudioSourceType === 'mic') {
+                easyModeAudioFileBtn.classList.add('hidden');
+                easyModeMicSelect.classList.remove('hidden');
+                easyModeSourceToggleBtn.title = "Cambiar a Archivo";
+            } else {
+                easyModeAudioFileBtn.classList.remove('hidden');
+                easyModeMicSelect.classList.add('hidden');
+                easyModeSourceToggleBtn.title = "Cambiar a Micrófono";
+            }
+        }
+    }
+    function toggleSourcePanels() { if (micPanel) micPanel.style.display = window.currentAudioSourceType === 'mic' ? 'block' : 'none'; if (filePanel) filePanel.style.display = window.currentAudioSourceType === 'file' ? 'block' : 'none'; updateSourceButtonUIAfterDOMChange(); }
     async function handleSourceChange() {
         stopCurrentAudioSourceLogic();
         toggleSourcePanels();
-        if (currentAudioSourceType === 'mic') {
+        if (window.currentAudioSourceType === 'mic') {
             let micStarted = false;
             if (micSelect.value && micSelect.value !== "") { micStarted = await startMicAudio(micSelect.value); }
             else if (micSelect.options.length > 0 && micSelect.options[0].value !== "" && micSelect.options[0].value !== "No hay micrófonos" && micSelect.options[0].value !== "Error al listar") { micStarted = await startMicAudio(micSelect.options[0].value); }
-            if (!micStarted) { currentAudioSourceType = 'file'; toggleSourcePanels(); if (audioBuffer) { startReverbSystemWithBuffer(audioBuffer); } else { drawInitialMessage("Carga un archivo de audio para ver el espectro."); } }
+            if (!micStarted) { window.currentAudioSourceType = 'file'; toggleSourcePanels(); if (audioBuffer) { startReverbSystemWithBuffer(audioBuffer); } else { drawInitialMessage("Carga un archivo de audio para ver el espectro."); } }
         } else {
             if (audioBuffer) { startReverbSystemWithBuffer(audioBuffer); }
             else { drawInitialMessage("Carga un archivo de audio para ver el espectro."); }
         }
     }
-    if (sourceToggleButton) { sourceToggleButton.addEventListener('click', () => { currentAudioSourceType = currentAudioSourceType === 'file' ? 'mic' : 'file'; handleSourceChange(); }); }
-    if (micSelect) { micSelect.addEventListener('change', async () => { if (currentAudioSourceType === 'mic') { await handleSourceChange(); } }); }
-    if (channelSelect) { channelSelect.addEventListener('change', () => { if (currentAudioSourceType !== 'mic' || !splitter || !micGainNode || !currentSourceNode) return; const newChannelIdx = Number(channelSelect.value); if (isNaN(newChannelIdx) || newChannelIdx >= currentSourceNode.channelCount) return; try { splitter.disconnect(); splitter.connect(micGainNode, newChannelIdx, 0); currentMicChannelIndex = newChannelIdx; } catch (err) { console.error("Error al cambiar canal de micrófono:", err); } }); }
+    if (sourceToggleButton) { sourceToggleButton.addEventListener('click', () => { window.currentAudioSourceType = window.currentAudioSourceType === 'file' ? 'mic' : 'file'; handleSourceChange(); }); }
+    if (micSelect) { micSelect.addEventListener('change', async () => { if (window.currentAudioSourceType === 'mic') { await handleSourceChange(); } }); }
+    if (channelSelect) { channelSelect.addEventListener('change', () => { if (window.currentAudioSourceType !== 'mic' || !splitter || !micGainNode || !currentSourceNode) return; const newChannelIdx = Number(channelSelect.value); if (isNaN(newChannelIdx) || newChannelIdx >= currentSourceNode.channelCount) return; try { splitter.disconnect(); splitter.connect(micGainNode, newChannelIdx, 0); currentMicChannelIndex = newChannelIdx; } catch (err) { console.error("Error al cambiar canal de micrófono:", err); } }); }
     function startReverbSystemWithBuffer(loadedAudioBuffer) { if (convolverNode && !convolverNode.buffer) reverb_updateReverbSize(); reverb_updateDryWetMix(); }
-    function updateMainPlayerTimelineDisplay(isPausedOrForceUpdate = false) {
-        if (isMainPlayerPlaying && audioBuffer && audioContext && currentSourceNode) {
-            let currentTimeInTrack = mainPlayerStartOffset + (audioContext.currentTime - mainPlayerStartTime);
-            if (isMainPlayerLoopEnabled && audioBuffer.duration > 0) { currentTimeInTrack %= audioBuffer.duration; } else { currentTimeInTrack = Math.max(0, Math.min(currentTimeInTrack, mainPlayerDuration)); }
-            if (timeline && parseFloat(timeline.value).toFixed(1) !== parseFloat(currentTimeInTrack).toFixed(1)) { timeline.value = currentTimeInTrack; const numInput = document.getElementById('timelineValueInput'); if (numInput) numInput.value = parseFloat(currentTimeInTrack).toFixed(1); }
-            if (currentTimeDisplay) { currentTimeDisplay.textContent = formatTime(currentTimeInTrack); }
-            mainPlayerAnimationFrameId = requestAnimationFrame(updateMainPlayerTimelineDisplay);
-        } else if (isPausedOrForceUpdate) {
-            if (mainPlayerAnimationFrameId) { cancelAnimationFrame(mainPlayerAnimationFrameId); mainPlayerAnimationFrameId = null; }
-            let finalTime = mainPlayerStartOffset;
-            if (audioBuffer && finalTime >= mainPlayerDuration && !isMainPlayerLoopEnabled) finalTime = 0;
-            else if (audioBuffer && isMainPlayerLoopEnabled && mainPlayerDuration > 0) finalTime %= mainPlayerDuration;
-            finalTime = audioBuffer ? Math.max(0, Math.min(finalTime, mainPlayerDuration)) : 0;
-            if (timeline) { timeline.value = finalTime; const numInput = document.getElementById('timelineValueInput'); if (numInput) numInput.value = parseFloat(finalTime).toFixed(1); }
-            if (currentTimeDisplay) { currentTimeDisplay.textContent = formatTime(finalTime); }
-        }
-    }
+    
     function setupMainAudioRecorder() {
         if (!audioContext || !recordSourceMixer) { return; }
         mainRecordingStreamDestinationNode = audioContext.createMediaStreamDestination();
@@ -2950,7 +3549,21 @@ function drawDrawnPaths(ctx, width, height) {
             enableRecordingButtons();
         };
     }
-    function enableRecordingButtons() { if (!recordBtn || !stopRecBtn || !appendRecBtn || !overdubNowBtn) return; const isRecorderActive = mainAudioRecorder && mainAudioRecorder.state === "recording"; recordBtn.disabled = isRecorderActive; stopRecBtn.disabled = !isRecorderActive; const hasRecording = !!mainRecorderAudioBuffer; appendRecBtn.disabled = isRecorderActive || !hasRecording; overdubNowBtn.disabled = isRecorderActive || !hasRecording; }
+    function enableRecordingButtons() { 
+        if (!recordBtn || !stopRecBtn || !appendRecBtn || !overdubNowBtn) return; 
+        const isRecorderActive = mainAudioRecorder && mainAudioRecorder.state === "recording"; 
+        recordBtn.disabled = isRecorderActive; 
+        stopRecBtn.disabled = !isRecorderActive; 
+        const hasRecording = !!mainRecorderAudioBuffer; 
+        appendRecBtn.disabled = isRecorderActive || !hasRecording; 
+        overdubNowBtn.disabled = isRecorderActive || !hasRecording;
+        
+        const easyModeRecBtn = document.getElementById('easyModeRecordBtn');
+        if (easyModeRecBtn) {
+            easyModeRecBtn.innerHTML = isRecorderActive ? '■' : '●';
+            easyModeRecBtn.classList.toggle('is-recording', isRecorderActive);
+        }
+    }
     function appendAudioBuffers(buffer1, buffer2, context) {
         if (!buffer1) return buffer2; if (!buffer2) return buffer1;
         const numberOfChannels = Math.min(buffer1.numberOfChannels, buffer2.numberOfChannels);
@@ -2973,9 +3586,6 @@ function drawDrawnPaths(ctx, width, height) {
         }
         return mixedBuffer;
     }
-    if (recordBtn) recordBtn.addEventListener('click', () => { if (!audioContext || !mainAudioRecorder) return; if (audioContext.state === 'suspended') audioContext.resume(); mainRecordedChunks = []; currentRecordingMode = "record"; try { mainAudioRecorder.start(); enableRecordingButtons(); } catch (e) { console.error("Error al iniciar grabación:", e); enableRecordingButtons(); } });
-    if (appendRecBtn) appendRecBtn.addEventListener('click', () => { if (!mainRecorderAudioBuffer || !audioContext || !mainAudioRecorder) return; if (audioContext.state === 'suspended') audioContext.resume(); mainRecordedChunks = []; currentRecordingMode = "append"; try { mainAudioRecorder.start(); enableRecordingButtons(); } catch (e) { console.error("Error al iniciar append:", e); enableRecordingButtons(); } });
-    if (overdubNowBtn) overdubNowBtn.addEventListener('click', () => { if (!mainRecorderAudioBuffer || !audioContext || !mainAudioRecorder) return; if (audioContext.state === 'suspended') audioContext.resume(); mainRecordedChunks = []; currentRecordingMode = "overdub"; try { mainAudioRecorder.start(); enableRecordingButtons(); } catch (e) { console.error("Error al iniciar overdub:", e); enableRecordingButtons(); } });
     if (stopRecBtn) stopRecBtn.addEventListener('click', () => { if (mainAudioRecorder && mainAudioRecorder.state === "recording") { mainAudioRecorder.stop(); if (stopRecBtn) stopRecBtn.disabled = true; } else { enableRecordingButtons(); } });
     if (clearRecBtn) clearRecBtn.addEventListener('click', () => {
         if (mainAudioRecorder && mainAudioRecorder.state === "recording") { currentRecordingMode = "clear_for_empty_record"; mainAudioRecorder.stop(); }
@@ -3023,25 +3633,21 @@ function drawDrawnPaths(ctx, width, height) {
             }
         }
         
-        const pointRadius = 4;
         samplerGrainPoints.forEach(point => {
             const x = point.x * width;
-            const y = point.y * height;
             
             canvasCtx.beginPath();
-            canvasCtx.arc(x, y, pointRadius, 0, 2 * Math.PI);
+            canvasCtx.moveTo(x, 0);
+            canvasCtx.lineTo(x, height);
 
             if (point.active) {
-                canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-                canvasCtx.fill();
-                canvasCtx.strokeStyle = 'rgba(200, 200, 200, 0.8)';
-                canvasCtx.lineWidth = 1;
-                canvasCtx.stroke();
-            } else {
-                canvasCtx.strokeStyle = 'grey';
+                canvasCtx.strokeStyle = 'yellow';
                 canvasCtx.lineWidth = 1.5;
-                canvasCtx.stroke();
+            } else {
+                canvasCtx.strokeStyle = 'black';
+                canvasCtx.lineWidth = 1;
             }
+            canvasCtx.stroke();
         });
     }
 
@@ -3052,16 +3658,14 @@ function drawDrawnPaths(ctx, width, height) {
             if (!mainRecorderAudioBuffer) return;
             const rect = recordedWaveformCanvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
             
-            const pointHitRadius = 10;
+            const pointHitRadius = 10; 
             let pointClickedIndex = -1;
 
             for (let i = samplerGrainPoints.length - 1; i >= 0; i--) {
                 const point = samplerGrainPoints[i];
                 const pointCanvasX = point.x * rect.width;
-                const pointCanvasY = point.y * rect.height;
-                const distance = Math.sqrt(Math.pow(x - pointCanvasX, 2) + Math.pow(y - pointCanvasY, 2));
+                const distance = Math.abs(x - pointCanvasX);
 
                 if (distance < pointHitRadius) {
                     pointClickedIndex = i;
@@ -3297,6 +3901,11 @@ function drawDrawnPaths(ctx, width, height) {
             });
         });
 
+        sidechainThresholdDialEl = document.getElementById('sidechainThresholdDial');
+        sidechainAttackDialEl = document.getElementById('sidechainAttackDial');
+        sidechainReleaseDialEl = document.getElementById('sidechainReleaseDial');
+        sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
+
         sidechainThresholdDialEl?.addEventListener('dialChange', e => { sidechainThresholdValue = parseFloat(e.detail.value); });
         sidechainAttackDialEl?.addEventListener('dialChange', e => { sidechainAttackTime = parseFloat(e.detail.value); });
         sidechainReleaseDialEl?.addEventListener('dialChange', e => { sidechainReleaseTime = parseFloat(e.detail.value); });
@@ -3365,7 +3974,15 @@ function drawDrawnPaths(ctx, width, height) {
     
     let isLoopRealtimePlaying = [false, false, false];
     let realtimeLoopSourceNodes = [null, null, null];
+    let loopFades = [
+        { fadeIn: 0.0, fadeOut: 0.0, dragging: null },
+        { fadeIn: 0.0, fadeOut: 0.0, dragging: null },
+        { fadeIn: 0.0, fadeOut: 0.0, dragging: null }
+    ];
     
+    const loopReverseBtns = [document.getElementById('reverseBtn1'), document.getElementById('reverseBtn2'), document.getElementById('reverseBtn3')];
+    const loopFlexPitchBtns = [document.getElementById('flexPitchBtn1'), document.getElementById('flexPitchBtn2'), document.getElementById('flexPitchBtn3')];
+
     function drawLoopWaveformVisuals(loopIndex, playheadPosition = -1) {
         const canvas = loopCanvases[loopIndex];
         if (!canvas) return;
@@ -3421,15 +4038,58 @@ function drawDrawnPaths(ctx, width, height) {
         }
         
         if (loopSelection.end > loopSelection.start) {
-            ctx.fillStyle = styles.getPropertyValue('--loop-selection-bg').trim() || 'rgba(255, 255, 0, 0.3)';
-            let selectionStartX = (loopSelection.start - loopPanOffsets[loopIndex]) / (1 / loopZoomLevels[loopIndex]) * width;
-            let selectionEndX = (loopSelection.end - loopPanOffsets[loopIndex]) / (1 / loopZoomLevels[loopIndex]) * width;
+            const visiblePortion = 1 / loopZoomLevels[loopIndex];
+            const viewStart = loopPanOffsets[loopIndex];
+            const viewEnd = viewStart + visiblePortion;
+            
+            if(loopSelection.end > viewStart && loopSelection.start < viewEnd) {
+                ctx.fillStyle = styles.getPropertyValue('--loop-selection-bg').trim() || 'rgba(255, 255, 0, 0.3)';
+                let selectionStartX = ((loopSelection.start - viewStart) / visiblePortion) * width;
+                let selectionEndX = ((loopSelection.end - viewStart) / visiblePortion) * width;
+                
+                selectionStartX = Math.max(0, selectionStartX);
+                selectionEndX = Math.min(width, selectionEndX);
 
-            selectionStartX = Math.max(0, Math.min(width, selectionStartX));
-            selectionEndX = Math.max(0, Math.min(width, selectionEndX));
+                if (selectionEndX > selectionStartX) {
+                    ctx.fillRect(selectionStartX, 0, selectionEndX - selectionStartX, height);
+                    
+                    const fades = loopFades[loopIndex];
+                    const selectionWidthPx = selectionEndX - selectionStartX;
+                    const fadeInPx = fades.fadeIn * selectionWidthPx;
+                    const fadeOutPx = fades.fadeOut * selectionWidthPx;
 
-            if (selectionEndX > selectionStartX) {
-                ctx.fillRect(selectionStartX, 0, selectionEndX - selectionStartX, height);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.lineWidth = 1;
+
+                    if (fadeInPx > 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(selectionStartX, height);
+                        ctx.lineTo(selectionStartX + fadeInPx, 0);
+                        ctx.lineTo(selectionStartX, 0);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(selectionStartX, height);
+                        ctx.lineTo(selectionStartX + fadeInPx, 0);
+                        ctx.stroke();
+                    }
+
+                    if (fadeOutPx > 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(selectionEndX - fadeOutPx, 0);
+                        ctx.lineTo(selectionEndX, height);
+                        ctx.lineTo(selectionEndX, 0);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(selectionEndX - fadeOutPx, 0);
+                        ctx.lineTo(selectionEndX, height);
+                        ctx.stroke();
+                    }
+                }
             }
         }
 
@@ -3462,111 +4122,161 @@ function drawDrawnPaths(ctx, width, height) {
     function attachLoopCanvasEvents(loopIndex) {
         const canvas = loopCanvases[loopIndex];
         if (!canvas) return;
-        let isDraggingOnCanvas = false;
 
-        canvas.addEventListener('mousedown', (e) => {
-            if (!mainRecorderAudioBuffer || e.button !== 0) return;
-
-            if (isMidiMapping) return;
-
-            isDraggingOnCanvas = true;
-            
+        function getMousePosInfo(e) {
             const rect = canvas.getBoundingClientRect();
             const xOnCanvas = e.clientX - rect.left;
             const xInViewNormalized = Math.min(Math.max(xOnCanvas / rect.width, 0), 1);
             const zoom = loopZoomLevels[loopIndex];
             const panOffsetCurrentView = loopPanOffsets[loopIndex];
             const visiblePortion = 1 / zoom;
-            let newSelectionPointNormalized = panOffsetCurrentView + (xInViewNormalized * visiblePortion);
-            newSelectionPointNormalized = Math.min(Math.max(newSelectionPointNormalized, 0), 1);
+            let posInBufferNormalized = panOffsetCurrentView + (xInViewNormalized * visiblePortion);
+            posInBufferNormalized = Math.min(Math.max(posInBufferNormalized, 0), 1);
+            return { xOnCanvas, xInViewNormalized, posInBufferNormalized, rect };
+        }
 
+        canvas.addEventListener('contextmenu', e => {
+            e.preventDefault();
+            if (!mainRecorderAudioBuffer || isMidiMapping) return;
+
+            const { xOnCanvas, rect } = getMousePosInfo(e);
+            const selection = loopSelections[loopIndex];
+            if (selection.end <= selection.start) return;
+
+            const visiblePortion = 1 / loopZoomLevels[loopIndex];
+            const viewStart = loopPanOffsets[loopIndex];
+            let selectionStartX = ((selection.start - viewStart) / visiblePortion) * rect.width;
+            let selectionEndX = ((selection.end - viewStart) / visiblePortion) * rect.width;
+
+            const FADE_HANDLE_WIDTH = 25; 
+            if (xOnCanvas >= selectionStartX && xOnCanvas <= selectionStartX + FADE_HANDLE_WIDTH) {
+                loopFades[loopIndex].dragging = 'in';
+            } else if (xOnCanvas <= selectionEndX && xOnCanvas >= selectionEndX - FADE_HANDLE_WIDTH) {
+                loopFades[loopIndex].dragging = 'out';
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!mainRecorderAudioBuffer || e.button !== 0 || isMidiMapping) return;
+
+            const { posInBufferNormalized } = getMousePosInfo(e);
+            
             if (e.altKey) {
                 isSelectingSampleFlags[loopIndex] = true;
                 loopIsSelectingFlags[loopIndex] = false;
-                sampleSelections[loopIndex] = { start: newSelectionPointNormalized, end: newSelectionPointNormalized };
-            } else if (loopZoomLevels[loopIndex] > 1 && (e.metaKey || e.ctrlKey) ) {
+                sampleSelections[loopIndex] = { start: posInBufferNormalized, end: posInBufferNormalized };
+            } else if (loopZoomLevels[loopIndex] > 1 && (e.metaKey || e.ctrlKey)) {
                 loopIsDraggingForPan[loopIndex] = true;
                 loopPanLastMouseX[loopIndex] = e.clientX;
                 canvas.style.cursor = 'grabbing';
-                isDraggingOnCanvas = false;
             } else {
                 loopIsSelectingFlags[loopIndex] = true;
                 isSelectingSampleFlags[loopIndex] = false;
-                loopSelections[loopIndex] = { start: newSelectionPointNormalized, end: newSelectionPointNormalized };
-                canvas.style.cursor = 'crosshair';
+                loopSelections[loopIndex] = { start: posInBufferNormalized, end: posInBufferNormalized };
             }
             drawLoopWaveformVisuals(loopIndex);
         });
 
         canvas.addEventListener('mousemove', (e) => {
-             if (loopIsDraggingForPan[loopIndex]) {
+            const { posInBufferNormalized } = getMousePosInfo(e);
+
+            if (loopFades[loopIndex].dragging) {
+                const selection = loopSelections[loopIndex];
+                const selectionDuration = selection.end - selection.start;
+                if(selectionDuration <= 0) return;
+                
+                if (loopFades[loopIndex].dragging === 'in') {
+                    const newFadeInEndPos = Math.max(selection.start, Math.min(selection.end, posInBufferNormalized));
+                    const newFadeInDuration = newFadeInEndPos - selection.start;
+                    loopFades[loopIndex].fadeIn = Math.min(newFadeInDuration / selectionDuration, 0.5);
+                } else { // dragging out
+                    const newFadeOutStartPos = Math.min(selection.end, Math.max(selection.start, posInBufferNormalized));
+                    const newFadeOutDuration = selection.end - newFadeOutStartPos;
+                    loopFades[loopIndex].fadeOut = Math.min(newFadeOutDuration / selectionDuration, 0.5);
+                }
+            } else if (loopIsDraggingForPan[loopIndex]) {
                 const deltaX = e.clientX - loopPanLastMouseX[loopIndex];
                 loopPanLastMouseX[loopIndex] = e.clientX;
                 handleLoopPan(loopIndex, loopPanOffsets[loopIndex] + (-deltaX / canvas.width) * (1 / loopZoomLevels[loopIndex]));
-                return;
-            }
-            if (!isDraggingOnCanvas) return;
-
-            const rect = canvas.getBoundingClientRect();
-            const xOnCanvas = e.clientX - rect.left;
-            const xInViewNormalized = Math.min(Math.max(xOnCanvas / rect.width, 0), 1);
-            const zoom = loopZoomLevels[loopIndex];
-            const panOffsetCurrentView = loopPanOffsets[loopIndex];
-            const visiblePortion = 1 / zoom;
-            let newEndPointNormalized = panOffsetCurrentView + (xInViewNormalized * visiblePortion);
-            newEndPointNormalized = Math.min(Math.max(newEndPointNormalized, 0), 1);
-            
-            if (isSelectingSampleFlags[loopIndex]) {
-                sampleSelections[loopIndex].end = newEndPointNormalized;
+            } else if (isSelectingSampleFlags[loopIndex]) {
+                sampleSelections[loopIndex].end = posInBufferNormalized;
             } else if (loopIsSelectingFlags[loopIndex]) {
-                loopSelections[loopIndex].end = newEndPointNormalized;
+                loopSelections[loopIndex].end = posInBufferNormalized;
             }
+            
             drawLoopWaveformVisuals(loopIndex);
         });
 
-        const finalizeLoopSelectionOrPan = (event) => {
-            if (loopIsDraggingForPan[loopIndex]) {
-                loopIsDraggingForPan[loopIndex] = false;
-                canvas.style.cursor = loopZoomLevels[loopIndex] > 1 ? 'grab' : 'crosshair';
-            }
-            if (isSelectingSampleFlags[loopIndex]) {
-                if (sampleSelections[loopIndex].start > sampleSelections[loopIndex].end) {
-                    [sampleSelections[loopIndex].start, sampleSelections[loopIndex].end] = [sampleSelections[loopIndex].end, sampleSelections[loopIndex].start];
+        const finalizeLoopAction = (e) => {
+             if (e.button === 2) { // Right mouse button up
+                if (loopFades[loopIndex].dragging) {
+                    if (isLoopRealtimePlaying[loopIndex]) { stopLoopRealtimePlayback(loopIndex); startLoopRealtimePlayback(loopIndex); }
+                    loopFades[loopIndex].dragging = null;
                 }
-                isSelectingSampleFlags[loopIndex] = false;
-            }
-            if (loopIsSelectingFlags[loopIndex]) {
-                 if (loopSelections[loopIndex].start > loopSelections[loopIndex].end) {
-                    [loopSelections[loopIndex].start, loopSelections[loopIndex].end] = [loopSelections[loopIndex].end, loopSelections[loopIndex].start];
+             }
+
+            if (e.button === 0) { // Left mouse button up
+                if (loopIsDraggingForPan[loopIndex]) {
+                    loopIsDraggingForPan[loopIndex] = false;
+                    canvas.style.cursor = loopZoomLevels[loopIndex] > 1 ? 'grab' : 'crosshair';
                 }
-                if (flexPitchCache[loopIndex]) flexPitchCache[loopIndex] = {};
-                if (isLoopRealtimePlaying[loopIndex]) {
-                    stopLoopRealtimePlayback(loopIndex);
-                    startLoopRealtimePlayback(loopIndex);
+                if (isSelectingSampleFlags[loopIndex]) {
+                    if (sampleSelections[loopIndex].start > sampleSelections[loopIndex].end) {
+                        [sampleSelections[loopIndex].start, sampleSelections[loopIndex].end] = [sampleSelections[loopIndex].end, sampleSelections[loopIndex].start];
+                    }
+                    isSelectingSampleFlags[loopIndex] = false;
                 }
-                loopIsSelectingFlags[loopIndex] = false;
+                if (loopIsSelectingFlags[loopIndex]) {
+                    if (loopSelections[loopIndex].start > loopSelections[loopIndex].end) {
+                        [loopSelections[loopIndex].start, loopSelections[loopIndex].end] = [loopSelections[loopIndex].end, loopSelections[loopIndex].start];
+                    }
+                    if (loopSelections[loopIndex].end - loopSelections[loopIndex].start < 0.001) {
+                        loopSelections[loopIndex].end = loopSelections[loopIndex].start + 0.001;
+                    }
+                    
+                    // --- OPTIMIZACIÓN: Crear buffer dedicado al finalizar la selección ---
+                    const selection = loopSelections[loopIndex];
+                    if (mainRecorderAudioBuffer) {
+                        loopDedicatedBuffers[loopIndex] = extractAudioBufferSegment(
+                            mainRecorderAudioBuffer,
+                            selection.start,
+                            selection.end,
+                            audioContext
+                        );
+                        // Limpiar cachés viejos para este loop
+                        flexPitchCache[loopIndex] = {};
+                        loopReversedBuffersCache[loopIndex] = null;
+                        console.log(`Buffer dedicado creado para el loop ${loopIndex + 1}.`);
+                    }
+                    // --- Fin de la optimización ---
+
+                    if (isLoopRealtimePlaying[loopIndex]) {
+                        stopLoopRealtimePlayback(loopIndex);
+                        startLoopRealtimePlayback(loopIndex);
+                    }
+                    loopIsSelectingFlags[loopIndex] = false;
+                }
             }
-            isDraggingOnCanvas = false;
             drawLoopWaveformVisuals(loopIndex);
         };
 
-        canvas.addEventListener('mouseup', finalizeLoopSelectionOrPan);
-        canvas.addEventListener('mouseleave', (e) => {
-            if (isDraggingOnCanvas) finalizeLoopSelectionOrPan(e);
-            if (loopIsDraggingForPan[loopIndex]) finalizeLoopSelectionOrPan(e);
+        window.addEventListener('mouseup', finalizeLoopAction);
+        canvas.addEventListener('mouseleave', () => {
+            if(loopIsDraggingForPan[loopIndex] || isSelectingSampleFlags[loopIndex] || loopIsSelectingFlags[loopIndex] || loopFades[loopIndex].dragging) {
+                finalizeLoopAction({ button: loopFades[loopIndex].dragging ? 2 : 0 });
+            }
         });
         
         canvas.addEventListener('wheel', (e) => {
             if (!mainRecorderAudioBuffer) return;
             e.preventDefault();
             const zoomFactor = 1.2;
-            const rect = canvas.getBoundingClientRect();
-            const mouseXInCanvasViewNormalized = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+            const { xInViewNormalized } = getMousePosInfo(e);
             
             if (e.deltaY < 0) {
-                handleLoopZoom(loopIndex, loopZoomLevels[loopIndex] * zoomFactor, mouseXInCanvasViewNormalized);
+                handleLoopZoom(loopIndex, loopZoomLevels[loopIndex] * zoomFactor, xInViewNormalized);
             } else {
-                handleLoopZoom(loopIndex, loopZoomLevels[loopIndex] / zoomFactor, mouseXInCanvasViewNormalized);
+                handleLoopZoom(loopIndex, loopZoomLevels[loopIndex] / zoomFactor, xInViewNormalized);
             }
         });
         canvas.style.cursor = 'crosshair';
@@ -3623,12 +4333,17 @@ function drawDrawnPaths(ctx, width, height) {
     function updateLoopAndGranulatorWithNewBuffer(audioBuf) {
         mainRecorderAudioBuffer = audioBuf;
         mainRecorderAudioBufferId++;
+        
+        // --- OPTIMIZACIÓN: Limpiar buffers dedicados y cachés al cargar nuevo audio ---
+        loopDedicatedBuffers = [null, null, null];
+        loopReversedBuffersCache = [null, null, null];
         flexPitchCache = [{}, {}, {}];
         
         for (let i = 0; i < loopSelections.length; i++) {
             loopZoomLevels[i] = 1;
             loopPanOffsets[i] = 0;
             sampleSelections[i] = { start: 0, end: 0 };
+            loopFades[i] = { fadeIn: 0.0, fadeOut: 0.0, dragging: null };
             if (loopCanvases[i]) {
                 loopCanvases[i].style.cursor = 'crosshair';
                 drawLoopWaveformVisuals(i);
@@ -3671,60 +4386,84 @@ function drawDrawnPaths(ctx, width, height) {
     }
     
     function playLoopSegmentRealtimePlayback(loopIndex, scheduledTime) {
-        if (!mainRecorderAudioBuffer || mainRecorderAudioBuffer.duration === 0 || !isLoopRealtimePlaying[loopIndex]) {
+        const dedicatedBuffer = loopDedicatedBuffers[loopIndex];
+        if (!dedicatedBuffer || dedicatedBuffer.duration <= 0.001 || !isLoopRealtimePlaying[loopIndex]) {
             stopLoopRealtimePlayback(loopIndex);
             return;
         }
 
-        const selection = loopSelections[loopIndex];
-        const isReversed = loopReverseSwitches[loopIndex] ? loopReverseSwitches[loopIndex].checked : false;
+        const isReversed = loopReverseBtns[loopIndex] ? loopReverseBtns[loopIndex].getAttribute('aria-pressed') === 'true' : false;
         const currentSpeed = loopSpeedControls[loopIndex] ? parseFloat(loopSpeedControls[loopIndex].value) : 1;
-        const useFlexPitch = loopFlexPitchSwitches[loopIndex] ? loopFlexPitchSwitches[loopIndex].checked : false;
+        const useFlexPitch = loopFlexPitchBtns[loopIndex] ? loopFlexPitchBtns[loopIndex].getAttribute('aria-pressed') === 'true' : false;
 
-        let originalSegmentForPlayback = extractAudioBufferSegment(mainRecorderAudioBuffer, selection.start, selection.end, audioContext);
-        if (!originalSegmentForPlayback || originalSegmentForPlayback.duration <= 0.001) {
-            stopLoopRealtimePlayback(loopIndex);
-            return;
-        }
-
+        let originalSegmentForPlayback = dedicatedBuffer;
         if (isReversed) {
-            originalSegmentForPlayback = createReversedAudioBuffer(originalSegmentForPlayback);
-            if (!originalSegmentForPlayback) {
-                stopLoopRealtimePlayback(loopIndex);
-                return;
+            if(loopReversedBuffersCache[loopIndex]) {
+                originalSegmentForPlayback = loopReversedBuffersCache[loopIndex];
+            } else {
+                console.warn(`Buffer invertido para loop ${loopIndex+1} no estaba en caché. Generando ahora.`);
+                loopReversedBuffersCache[loopIndex] = createReversedAudioBuffer(dedicatedBuffer);
+                originalSegmentForPlayback = loopReversedBuffersCache[loopIndex] || dedicatedBuffer;
             }
         }
-
+        
         let bufferToPlay = originalSegmentForPlayback;
         let finalPlaybackRate = currentSpeed;
         let segmentDuration = bufferToPlay.duration;
 
-        if (useFlexPitch && currentSpeed !== 1.0 && typeof SoundTouch !== 'undefined' && typeof SimpleFilter !== 'undefined') {
-            const cacheKey = `${mainRecorderAudioBufferId}_s${selection.start.toFixed(4)}_e${selection.end.toFixed(4)}_r${isReversed}_v${currentSpeed.toString()}`;
+        if (useFlexPitch && currentSpeed !== 1.0 && audioWorker) {
+            const cacheKey = `${loopIndex}_${mainRecorderAudioBufferId}_s${loopSelections[loopIndex].start.toFixed(4)}_e${loopSelections[loopIndex].end.toFixed(4)}_r${isReversed}_v${currentSpeed.toFixed(2)}`;
             if (flexPitchCache[loopIndex] && flexPitchCache[loopIndex][cacheKey]) {
                 bufferToPlay = flexPitchCache[loopIndex][cacheKey];
+                finalPlaybackRate = 1.0; 
+                segmentDuration = bufferToPlay.duration;
             } else {
-                let newProcessedBuffer = processAudioWithSoundTouch(originalSegmentForPlayback, currentSpeed);
-                if (newProcessedBuffer && newProcessedBuffer.duration > 0.001) {
-                    if (!flexPitchCache[loopIndex]) flexPitchCache[loopIndex] = {};
-                    flexPitchCache[loopIndex][cacheKey] = newProcessedBuffer;
-                    bufferToPlay = newProcessedBuffer;
+                finalPlaybackRate = currentSpeed; // Reproducir sin procesar mientras el worker trabaja
+                
+                const transferableChannels = [];
+                for(let i=0; i < originalSegmentForPlayback.numberOfChannels; i++) {
+                    transferableChannels.push(originalSegmentForPlayback.getChannelData(i).slice(0));
                 }
+
+                audioWorker.postMessage({
+                    audioBufferChannels: transferableChannels,
+                    sampleRate: originalSegmentForPlayback.sampleRate,
+                    rateFactor: currentSpeed,
+                    cacheKey: cacheKey
+                }, transferableChannels.map(ch => ch.buffer));
             }
-            finalPlaybackRate = 1.0;
-            segmentDuration = bufferToPlay.duration;
         }
         
         const sourceNode = audioContext.createBufferSource();
         sourceNode.buffer = bufferToPlay;
         sourceNode.playbackRate.value = finalPlaybackRate;
-        if (loopVolumeGains[loopIndex]) sourceNode.connect(loopVolumeGains[loopIndex]);
         
+        const fadeGain = audioContext.createGain();
+        sourceNode.connect(fadeGain);
+        if (loopVolumeGains[loopIndex]) fadeGain.connect(loopVolumeGains[loopIndex]);
+
         const startTime = scheduledTime || audioContext.currentTime;
+        
+        const fades = loopFades[loopIndex];
+        const loopDurationSeconds = segmentDuration / finalPlaybackRate;
+        const fadeInDuration = fades.fadeIn * loopDurationSeconds;
+        const fadeOutDuration = fades.fadeOut * loopDurationSeconds;
+
+        fadeGain.gain.setValueAtTime(0, startTime);
+        if (fadeInDuration > 0.001) {
+            fadeGain.gain.linearRampToValueAtTime(1, startTime + fadeInDuration);
+        } else {
+            fadeGain.gain.setValueAtTime(1, startTime);
+        }
+        if (fadeOutDuration > 0.001 && loopDurationSeconds > fadeInDuration) {
+            const fadeOutStartTime = startTime + loopDurationSeconds - fadeOutDuration;
+            fadeGain.gain.setValueAtTime(1, Math.max(startTime + fadeInDuration, fadeOutStartTime));
+            fadeGain.gain.linearRampToValueAtTime(0, fadeOutStartTime + fadeOutDuration);
+        }
+        
         sourceNode.start(startTime);
         realtimeLoopSourceNodes[loopIndex] = sourceNode;
-
-        const loopDurationSeconds = segmentDuration / finalPlaybackRate;
+        
         const nextLoopTime = startTime + loopDurationSeconds;
 
         if (isLoopRealtimePlaying[loopIndex]) {
@@ -3732,12 +4471,12 @@ function drawDrawnPaths(ctx, width, height) {
                 if (isLoopRealtimePlaying[loopIndex]) {
                     playLoopSegmentRealtimePlayback(loopIndex, nextLoopTime);
                 }
-            }, (nextLoopTime - audioContext.currentTime - 0.05) * 1000); // Schedule check slightly before it's due
+            }, (nextLoopTime - audioContext.currentTime - 0.05) * 1000);
         }
     }
     
     function startLoopRealtimePlayback(loopIndex) {
-        if (isLoopRealtimePlaying[loopIndex] || !mainRecorderAudioBuffer) return;
+        if (isLoopRealtimePlaying[loopIndex] || !loopDedicatedBuffers[loopIndex]) return;
         
         if (audioContext.state === 'suspended') {
             audioContext.resume().then(() => actuallyStartLoopPlayback(loopIndex));
@@ -3752,41 +4491,9 @@ function drawDrawnPaths(ctx, width, height) {
         
         loopPlaybackStartTimes[loopIndex] = audioContext.currentTime;
         playLoopSegmentRealtimePlayback(loopIndex, loopPlaybackStartTimes[loopIndex]);
-        
-        if (!animationFrameId_visualizer && isAnimationEnabled) { requestAnimationFrame(animateVisualizer); }
-
-        const animationLoop = () => {
-            if (!isLoopRealtimePlaying[loopIndex]) {
-                drawLoopWaveformVisuals(loopIndex, -1);
-                return;
-            }
-            
-            const selection = loopSelections[loopIndex];
-            const speed = parseFloat(loopSpeedControls[loopIndex].value);
-            const isReversed = loopReverseSwitches[loopIndex].checked;
-            
-            let loopDuration = (selection.end - selection.start) * mainRecorderAudioBuffer.duration;
-            if (loopDuration <= 0) loopDuration = 1;
-
-            const elapsedTime = audioContext.currentTime - loopPlaybackStartTimes[loopIndex];
-            const scaledElapsedTime = elapsedTime * speed;
-            const currentPosInLoop = (scaledElapsedTime % loopDuration) / loopDuration;
-            
-            let finalProgress = currentPosInLoop;
-            if(isReversed) {
-                finalProgress = 1.0 - currentPosInLoop;
-            }
-
-            const playheadPositionInBuffer = selection.start + finalProgress * (selection.end - selection.start);
-            
-            drawLoopWaveformVisuals(loopIndex, playheadPositionInBuffer);
-            loopPlaybackAnimationIds[loopIndex] = requestAnimationFrame(animationLoop);
-        };
-        if(loopPlaybackAnimationIds[loopIndex]) cancelAnimationFrame(loopPlaybackAnimationIds[loopIndex]);
-        animationLoop();
     }
 
-    function stopLoopRealtimePlayback(loopIndex) {
+    function stopLoopRealtimePlayback(loopIndex, silent = false) {
         isLoopRealtimePlaying[loopIndex] = false;
 
         if (loopNextStartTimeoutId[loopIndex]) {
@@ -3799,29 +4506,33 @@ function drawDrawnPaths(ctx, width, height) {
             } catch (e) {}
             realtimeLoopSourceNodes[loopIndex] = null;
         }
-
-        if (loopPlaybackAnimationIds[loopIndex]) {
-            cancelAnimationFrame(loopPlaybackAnimationIds[loopIndex]);
-            loopPlaybackAnimationIds[loopIndex] = null;
-        }
         
-        drawLoopWaveformVisuals(loopIndex, -1);
-
-        if(loopPlayPauseBtns[loopIndex]) loopPlayPauseBtns[loopIndex].textContent = "Play";
+        if(!silent && loopPlayPauseBtns[loopIndex]) loopPlayPauseBtns[loopIndex].textContent = "Play";
     }
 
     loopSpeedControls.forEach((control, i) => {
         if(!control) return;
         control.addEventListener('input', function() {
             if (isLoopRealtimePlaying[i]) {
-                stopLoopRealtimePlayback(i);
+                stopLoopRealtimePlayback(i, true); // Parada silenciosa para no cambiar el texto del botón
                 startLoopRealtimePlayback(i);
             }
         });
     });
-    loopReverseSwitches.forEach((sw, i) => {
-        if(!sw) return;
-        sw.addEventListener('change', function() {
+
+    loopReverseBtns.forEach((btn, i) => {
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            const isPressed = this.getAttribute('aria-pressed') === 'true';
+            this.setAttribute('aria-pressed', String(!isPressed));
+
+            // --- OPTIMIZACIÓN: Pre-calcular y cachear el buffer invertido ---
+            if (!isPressed && loopDedicatedBuffers[i] && !loopReversedBuffersCache[i]) {
+                console.log(`Generando y cacheando buffer invertido para el loop ${i+1}...`);
+                loopReversedBuffersCache[i] = createReversedAudioBuffer(loopDedicatedBuffers[i]);
+            }
+            // --- Fin de la optimización ---
+
             if (flexPitchCache[i]) flexPitchCache[i] = {};
             if (isLoopRealtimePlaying[i]) {
                 stopLoopRealtimePlayback(i);
@@ -3829,20 +4540,28 @@ function drawDrawnPaths(ctx, width, height) {
             }
         });
     });
-    loopFlexPitchSwitches.forEach((sw, i) => {
-        if(!sw) return;
-        sw.addEventListener('change', function() {
+
+    loopFlexPitchBtns.forEach((btn, i) => {
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            const isPressed = this.getAttribute('aria-pressed') === 'true';
+            this.setAttribute('aria-pressed', String(!isPressed));
+
             if (isLoopRealtimePlaying[i]) {
-                stopLoopRealtimePlayback(i);
+                stopLoopRealtimePlayback(i, true);
                 startLoopRealtimePlayback(i);
             }
         });
     });
+    
     loopPlayPauseBtns.forEach((btn, i) => {
         if(!btn) return;
         btn.disabled = !mainRecorderAudioBuffer;
         btn.addEventListener('click', () => {
-            if (!mainRecorderAudioBuffer) return;
+            if (!loopDedicatedBuffers[i]) {
+                alert(`Primero debes seleccionar una región para el loop ${i+1}.`);
+                return;
+            };
             if (!isLoopRealtimePlaying[i]) {
                 startLoopRealtimePlayback(i);
             } else {
@@ -3860,116 +4579,10 @@ function drawDrawnPaths(ctx, width, height) {
     });
     
     function processAudioWithSoundTouch(audioBufferInput, rateFactor) {
-        if (!audioBufferInput || audioBufferInput.duration === 0) return audioBufferInput;
-        if (typeof SoundTouch === 'undefined' || typeof SimpleFilter === 'undefined') {
-            console.warn("SoundTouch no está disponible. No se puede aplicar Flex Pitch.");
-            return audioBufferInput;
-        }
-
-        const soundTouchInstance = new SoundTouch();
-        soundTouchInstance.sampleRate = audioBufferInput.sampleRate;
-        soundTouchInstance.tempo = rateFactor;
-
-        const numChannels = audioBufferInput.numberOfChannels;
-        const inputFrames = audioBufferInput.length;
-        
-        let interleavedInputSamples;
-        if (numChannels === 1) {
-            interleavedInputSamples = audioBufferInput.getChannelData(0);
-        } else {
-            const channelDataArray = [];
-            for (let ch = 0; ch < numChannels; ch++) {
-                channelDataArray.push(audioBufferInput.getChannelData(ch));
-            }
-            interleavedInputSamples = new Float32Array(inputFrames * numChannels);
-            for (let f = 0; f < inputFrames; f++) {
-                for (let ch = 0; ch < numChannels; ch++) {
-                    interleavedInputSamples[f * numChannels + ch] = channelDataArray[ch][f];
-                }
-            }
-        }
-
-        const soundTouchSource = {
-            extract: (target, numFramesToExtract, positionFrames) => {
-                const requestedSamples = numFramesToExtract * numChannels;
-                const startSampleInBuffer = positionFrames * numChannels;
-                let framesActuallyExtracted = 0;
-
-                if (startSampleInBuffer < interleavedInputSamples.length) {
-                    const availableSamplesFromPosition = interleavedInputSamples.length - startSampleInBuffer;
-                    const samplesToCopy = Math.min(requestedSamples, availableSamplesFromPosition);
-                    
-                    for (let i = 0; i < samplesToCopy; i++) {
-                        target[i] = interleavedInputSamples[startSampleInBuffer + i];
-                    }
-                    framesActuallyExtracted = Math.floor(samplesToCopy / numChannels);
-                    for (let i = samplesToCopy; i < requestedSamples; i++) {
-                        target[i] = 0;
-                    }
-                } else {
-                    for (let i = 0; i < requestedSamples; i++) {
-                        target[i] = 0;
-                    }
-                    framesActuallyExtracted = 0;
-                }
-                return framesActuallyExtracted;
-            }
-        };
-
-        let soundTouchFilter;
-        try {
-            soundTouchFilter = new SimpleFilter(soundTouchSource, soundTouchInstance);
-        } catch (e) {
-            console.error("Error al crear SimpleFilter de SoundTouch:", e);
-            return audioBufferInput;
-        }
-
-        const processedSamplesContainer = [];
-        const internalProcessingBufferSizeFrames = 4096;
-        const tempProcessingBufferSamples = new Float32Array(internalProcessingBufferSizeFrames * numChannels);
-        let framesExtractedCount, totalFramesProcessedBySoundTouch = 0;
-
-        do {
-            try {
-                framesExtractedCount = soundTouchFilter.extract(tempProcessingBufferSamples, internalProcessingBufferSizeFrames);
-            } catch (e) {
-                console.error("Error durante SoundTouch extract:", e);
-                framesExtractedCount = 0;
-            }
-            if (framesExtractedCount > 0) {
-                totalFramesProcessedBySoundTouch += framesExtractedCount;
-                processedSamplesContainer.push(tempProcessingBufferSamples.slice(0, framesExtractedCount * numChannels));
-            }
-        } while (framesExtractedCount > 0);
-
-        if (processedSamplesContainer.length === 0 || totalFramesProcessedBySoundTouch === 0) {
-            return null;
-        }
-
-        const totalProcessedSamples = processedSamplesContainer.reduce((sum, chunk) => sum + chunk.length, 0);
-        const finalOutputSamplesInterleaved = new Float32Array(totalProcessedSamples);
-        let currentOffset = 0;
-        processedSamplesContainer.forEach(chunk => {
-            finalOutputSamplesInterleaved.set(chunk, currentOffset);
-            currentOffset += chunk.length;
-        });
-        
-        const newTotalFrames = Math.round(totalProcessedSamples / numChannels);
-        if (newTotalFrames <= 0) return null;
-
-        const newProcessedAudioBuffer = audioContext.createBuffer(numChannels, newTotalFrames, audioBufferInput.sampleRate);
-        for (let ch = 0; ch < numChannels; ch++) {
-            const channelOutputData = newProcessedAudioBuffer.getChannelData(ch);
-            for (let f = 0; f < newTotalFrames; f++) {
-                const sampleIndexInInterleaved = f * numChannels + ch;
-                if (sampleIndexInInterleaved < finalOutputSamplesInterleaved.length) {
-                    channelOutputData[f] = finalOutputSamplesInterleaved[sampleIndexInInterleaved];
-                } else {
-                    channelOutputData[f] = 0;
-                }
-            }
-        }
-        return newProcessedAudioBuffer;
+        // Esta función ahora solo existirá dentro del worker.
+        // Se deja aquí como placeholder para evitar errores, pero no será llamada.
+        console.warn("processAudioWithSoundTouch fue llamada desde el hilo principal, debería usar el worker.");
+        return audioBufferInput;
     }
 
     function createReversedAudioBuffer(inputAudioBuffer) {
@@ -3983,9 +4596,9 @@ function drawDrawnPaths(ctx, width, height) {
             for (let channel = 0; channel < numChannels; channel++) {
                 const originalChannelData = inputAudioBuffer.getChannelData(channel);
                 const reversedChannelData = reversedBuffer.getChannelData(channel);
-                for (let i = 0; i < frameLength; i++) {
-                    reversedChannelData[i] = originalChannelData[frameLength - 1 - i];
-                }
+                // Usar el método reverse() que es más rápido y nativo
+                reversedChannelData.set(originalChannelData);
+                reversedChannelData.reverse();
             }
             return reversedBuffer;
         } catch (err) {
@@ -3999,7 +4612,7 @@ function drawDrawnPaths(ctx, width, height) {
             return {};
         }
         return {
-            selectedSource: currentAudioSourceType,
+            selectedSource: window.currentAudioSourceType,
             selectedMicId: micSelect ? micSelect.value : (micSelect?.options.length > 0 ? micSelect.options[0].value : ""),
             micVolumeLevel: micVolumeFader?.value ?? "1",
             isMicCurrentlyMuted: isMicMuted,
@@ -4040,8 +4653,8 @@ function drawDrawnPaths(ctx, width, height) {
             loopRegionSelections: loopSelections.map(sel => ({...sel})),
             sampleRegionSelections: sampleSelections.map(sel => ({...sel})),
             loopSpeedSettings: loopSpeedControls.map(c => c?.value ?? "1"),
-            loopFlexPitchStates: loopFlexPitchSwitches.map(c => c?.checked ?? false),
-            loopReverseStates: loopReverseSwitches.map(c => c?.checked ?? false),
+            loopFlexPitchStates: loopFlexPitchBtns.map(b => b.getAttribute('aria-pressed') === 'true'),
+            loopReverseStates: loopReverseBtns.map(b => b.getAttribute('aria-pressed') === 'true'),
             loopVolumeLevels: loopVolumeFaders.map(c => c?.value ?? "1"),
             loopPlaybackStates: isLoopRealtimePlaying.map(s => s),
             loopZoomLevels: loopZoomLevels.map(z => z),
@@ -4234,7 +4847,6 @@ function drawDrawnPaths(ctx, width, height) {
 
         if(playMasterBufferBtnEl) playMasterBufferBtnEl.textContent="Pause Grab.";
         if(pauseMasterBufferBtnEl) pauseMasterBufferBtnEl.disabled = false;
-        updateMasterRecordingTimelineDisplay();
 
         masterBufferSourceNode.onended = () => {
             if (masterBufferSourceNode && isMasterRecordingPlaying && !masterBufferSourceNode.loop) {
@@ -4242,11 +4854,8 @@ function drawDrawnPaths(ctx, width, height) {
                 if (audioContext.currentTime >= expectedEndTime - 0.1 || masterRecordingStartOffset >= masterRecordedAudioBuffer.duration) {
                     isMasterRecordingPlaying = false;
                     masterRecordingStartOffset = 0;
-                    if(masterTimelineFader) localUpdateRangeParamProgrammatic(masterTimelineFader, masterRecordingStartOffset);
-                    if(masterCurrentTimeDisplay) masterCurrentTimeDisplay.textContent = formatTime(masterRecordingStartOffset);
                     if(playMasterBufferBtnEl) playMasterBufferBtnEl.textContent="Play Grab.";
                     if(pauseMasterBufferBtnEl) pauseMasterBufferBtnEl.disabled = true;
-                    updateMasterRecordingTimelineDisplay(true);
                 }
             }
             if(masterBufferSourceNode && masterBufferSourceNode.onended === arguments.callee) {
@@ -4260,14 +4869,10 @@ function drawDrawnPaths(ctx, width, height) {
             try { masterBufferSourceNode.stop(); } catch(e){}
             masterRecordingStartOffset = (audioContext.currentTime - masterRecordingStartTime);
             masterRecordingStartOffset = Math.max(0, Math.min(masterRecordingStartOffset, masterRecordedAudioBuffer.duration));
-            if(masterTimelineFader) localUpdateRangeParamProgrammatic(masterTimelineFader, masterRecordingStartOffset);
             
             isMasterRecordingPlaying = false;
             if(playMasterBufferBtnEl) playMasterBufferBtnEl.textContent="Play Grab.";
             if(pauseMasterBufferBtnEl) pauseMasterBufferBtnEl.disabled = true;
-            if(animationRequestId_MasterTimeline) cancelAnimationFrame(animationRequestId_MasterTimeline);
-            animationRequestId_MasterTimeline = null;
-            updateMasterRecordingTimelineDisplay(true);
         }
     }
     
@@ -4307,43 +4912,24 @@ function drawDrawnPaths(ctx, width, height) {
         }
     });
 
-    let animationRequestId_MasterTimeline = null;
-    function updateMasterRecordingTimelineDisplay(isPausedOrForceUpdate = false){
-        function step(){
-            if(isMasterRecordingPlaying && masterRecordedAudioBuffer && audioContext){
-                let currentTimePoint = (audioContext.currentTime - masterRecordingStartTime);
-                if(currentTimePoint < 0) currentTimePoint = 0;
-                if(currentTimePoint >= masterRecordedAudioBuffer.duration) currentTimePoint = masterRecordedAudioBuffer.duration;
-                
-                if(masterTimelineFader && parseFloat(masterTimelineFader.value).toFixed(1) !== parseFloat(currentTimePoint).toFixed(1)) {
-                    masterTimelineFader.value = currentTimePoint;
-                    const numInput = document.getElementById('masterTimelineValueInput');
-                    if(numInput) numInput.value = parseFloat(currentTimePoint).toFixed(1);
-                }
-                if(masterCurrentTimeDisplay) masterCurrentTimeDisplay.textContent = formatTime(currentTimePoint);
-            }
-            if(isMasterRecordingPlaying) animationRequestId_MasterTimeline = requestAnimationFrame(step);
-            else {
-                if(animationRequestId_MasterTimeline) cancelAnimationFrame(animationRequestId_MasterTimeline);
-                animationRequestId_MasterTimeline = null;
+    function updateMasterRecordingTimelineDisplay(forceUpdate = false){
+       if (!isMasterRecordingPlaying && !forceUpdate) return;
+        
+        let currentTimePoint = masterRecordingStartOffset;
+        if (isMasterRecordingPlaying && masterRecordedAudioBuffer && audioContext) {
+            currentTimePoint = audioContext.currentTime - masterRecordingStartTime;
+            if (currentTimePoint < 0) currentTimePoint = 0;
+            if (currentTimePoint >= masterRecordedAudioBuffer.duration) {
+                currentTimePoint = masterRecordedAudioBuffer.duration;
             }
         }
-        if(isPausedOrForceUpdate && !isMasterRecordingPlaying) {
-            if(animationRequestId_MasterTimeline) cancelAnimationFrame(animationRequestId_MasterTimeline);
-            animationRequestId_MasterTimeline = null;
-            let finalTime = masterRecordingStartOffset;
-            if (masterRecordedAudioBuffer && finalTime >= masterRecordedAudioBuffer.duration) finalTime = masterRecordedAudioBuffer.duration;
-            finalTime = masterRecordedAudioBuffer ? Math.max(0, Math.min(finalTime, masterRecordedAudioBuffer.duration)) : 0;
-            if(masterTimelineFader) {
-                masterTimelineFader.value = finalTime;
-                const numInput = document.getElementById('masterTimelineValueInput');
-                if(numInput) numInput.value = parseFloat(finalTime).toFixed(1);
-            }
-            if(masterCurrentTimeDisplay) masterCurrentTimeDisplay.textContent = formatTime(finalTime);
-        } else if (isMasterRecordingPlaying) {
-            if(animationRequestId_MasterTimeline) cancelAnimationFrame(animationRequestId_MasterTimeline);
-            step();
+        
+        if (masterTimelineFader) {
+            masterTimelineFader.value = currentTimePoint;
+            const numInput = document.getElementById('masterTimelineValueInput');
+            if (numInput) numInput.value = parseFloat(currentTimePoint).toFixed(1);
         }
+        if (masterCurrentTimeDisplay) masterCurrentTimeDisplay.textContent = formatTime(currentTimePoint);
     }
 
     function audioBufferToWavBlob(audioBuff, opt = {}) {
@@ -4429,9 +5015,9 @@ function drawDrawnPaths(ctx, width, height) {
         const selection = sampleSelections[loopIndex];
         if (selection.start >= selection.end) return;
         
-        const isReversed = loopReverseSwitches[loopIndex] ? loopReverseSwitches[loopIndex].checked : false;
+        const isReversed = loopReverseBtns[loopIndex] ? loopReverseBtns[loopIndex].getAttribute('aria-pressed') === 'true' : false;
         const currentSpeed = loopSpeedControls[loopIndex] ? parseFloat(loopSpeedControls[loopIndex].value) : 1;
-        const useFlexPitch = loopFlexPitchSwitches[loopIndex] ? loopFlexPitchSwitches[loopIndex].checked : false;
+        const useFlexPitch = loopFlexPitchBtns[loopIndex] ? loopFlexPitchBtns[loopIndex].getAttribute('aria-pressed') === 'true' : false;
 
         let segment = extractAudioBufferSegment(mainRecorderAudioBuffer, selection.start, selection.end, audioContext);
         if (!segment) return;
@@ -4444,11 +5030,23 @@ function drawDrawnPaths(ctx, width, height) {
         let bufferToPlay = segment;
         let finalPlaybackRate = currentSpeed;
 
-        if (useFlexPitch && currentSpeed !== 1.0 && typeof SoundTouch !== 'undefined' && typeof SimpleFilter !== 'undefined') {
-            let newProcessedBuffer = processAudioWithSoundTouch(segment, currentSpeed);
-            if (newProcessedBuffer && newProcessedBuffer.duration > 0.001) {
-                bufferToPlay = newProcessedBuffer;
+        if (useFlexPitch && currentSpeed !== 1.0 && audioWorker) {
+            const cacheKey = `${loopIndex}_${mainRecorderAudioBufferId}_sample_s${selection.start.toFixed(4)}_e${selection.end.toFixed(4)}_r${isReversed}_v${currentSpeed.toFixed(2)}`;
+            if(flexPitchCache[loopIndex] && flexPitchCache[loopIndex][cacheKey]){
+                bufferToPlay = flexPitchCache[loopIndex][cacheKey];
                 finalPlaybackRate = 1.0;
+            } else {
+                finalPlaybackRate = currentSpeed;
+                const transferableChannels = [];
+                 for(let i=0; i < segment.numberOfChannels; i++) {
+                    transferableChannels.push(segment.getChannelData(i).slice(0));
+                }
+                 audioWorker.postMessage({
+                    audioBufferChannels: transferableChannels,
+                    sampleRate: segment.sampleRate,
+                    rateFactor: currentSpeed,
+                    cacheKey: cacheKey
+                }, transferableChannels.map(ch => ch.buffer));
             }
         }
         
@@ -4597,7 +5195,11 @@ function drawDrawnPaths(ctx, width, height) {
         const targetElement = document.getElementById(mapping.id);
         if (!targetElement) return;
 
-        if (command === 0xB0) {
+        function handleSwitchToggle(element) {
+            element.click();
+        }
+
+        if (command === 0xB0) { // CC
             const normalizedValue = value / 127.0;
 
             if (targetElement.classList.contains('dial')) {
@@ -4614,7 +5216,9 @@ function drawDrawnPaths(ctx, width, height) {
                 const lastValue = lastCCValues[number] || 0;
                 const threshold = 64;
                 if (value >= threshold && lastValue < threshold) {
-                    if (targetElement.id.startsWith('loopCanvas')) {
+                    if (targetElement.classList.contains('toggle-switch-input') || targetElement.classList.contains('loop-action-btn')) {
+                        handleSwitchToggle(targetElement);
+                    } else if (targetElement.id.startsWith('loopCanvas')) {
                          const sampleIndex = parseInt(targetElement.id.replace('loopCanvas', '')) - 1;
                          if (!isNaN(sampleIndex)) triggerSampleOn(sampleIndex);
                     } else if (targetElement.tagName === 'BUTTON') {
@@ -4623,14 +5227,16 @@ function drawDrawnPaths(ctx, width, height) {
                 }
                 lastCCValues[number] = value;
             }
-        } else if (command === 0x90 && value > 0) {
-             if (targetElement.id.startsWith('loopCanvas')) {
+        } else if (command === 0x90 && value > 0) { // Note On
+             if (targetElement.classList.contains('toggle-switch-input') || targetElement.classList.contains('loop-action-btn')) {
+                handleSwitchToggle(targetElement);
+             } else if (targetElement.id.startsWith('loopCanvas')) {
                 const sampleIndex = parseInt(targetElement.id.replace('loopCanvas', '')) - 1;
                 if (!isNaN(sampleIndex)) triggerSampleOn(sampleIndex);
              } else if (targetElement.tagName === 'BUTTON') {
                 targetElement.click();
              }
-        } else if (command === 0x80 || (command === 0x90 && value === 0)) {
+        } else if (command === 0x80 || (command === 0x90 && value === 0)) { // Note Off
              if (targetElement.id.startsWith('loopCanvas')) {
                 const sampleIndex = parseInt(targetElement.id.replace('loopCanvas', '')) - 1;
                 if (!isNaN(sampleIndex)) triggerSampleOff(sampleIndex);
@@ -4644,6 +5250,12 @@ function drawDrawnPaths(ctx, width, height) {
             if(e.repeat || (activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='SELECT'||activeEl.tagName==='TEXTAREA'||activeEl.isContentEditable))) return;
             
             const key = e.key;
+
+            if (key === 'Backspace') {
+                e.preventDefault();
+                if (undoDrawingBtn) undoDrawingBtn.click();
+                return;
+            }
             
             if(e.code==='Space' && playPauseBtn){
                 e.preventDefault();
@@ -4657,11 +5269,20 @@ function drawDrawnPaths(ctx, width, height) {
             }
             
             switch(key.toUpperCase()){
+                case 'W':
+                    document.getElementById('spectralSynthDrawModeSwitch')?.click();
+                    break;
+                case 'E': 
+                    if(spectralSynthPowerSwitch) {
+                        spectralSynthPowerSwitch.checked = !spectralSynthPowerSwitch.checked;
+                        spectralSynthPowerSwitch.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    break;
                 case'R': if(recordBtn&&!recordBtn.disabled)recordBtn.click();break;
                 case'T': if(stopRecBtn&&!stopRecBtn.disabled)stopRecBtn.click();break;
                 case'G': if(granulatorPlayToggleBtn&&!granulatorPlayToggleBtn.disabled)toggleGranulator();break;
-                case'Y': if(appendRecBtn) appendRecBtn.click();break;
-                case'U': if(overdubNowBtn)overdubNowBtn.click();break;
+                case'Y': if(appendRecBtn&&!appendRecBtn.disabled) appendRecBtn.click();break;
+                case'U': if(overdubNowBtn&&!overdubNowBtn.disabled)overdubNowBtn.click();break;
                 case'A': if(loopPlayPauseBtns[0]&&!loopPlayPauseBtns[0].disabled)loopPlayPauseBtns[0].click();break;
                 case'S': if(loopPlayPauseBtns[1]&&!loopPlayPauseBtns[1].disabled)loopPlayPauseBtns[1].click();break;
                 case'D': if(loopPlayPauseBtns[2]&&!loopPlayPauseBtns[2].disabled)loopPlayPauseBtns[2].click();break;
@@ -4669,10 +5290,10 @@ function drawDrawnPaths(ctx, width, height) {
             }
 
             switch(key) {
-                case'1': if(stateButtons[0]&&!stateButtons[0].disabled)stateButtons[0].dispatchEvent(new MouseEvent('mouseup', {bubbles:true, button:0})); break;
-                case'2': if(stateButtons[1]&&!stateButtons[1].disabled)stateButtons[1].dispatchEvent(new MouseEvent('mouseup', {bubbles:true, button:0})); break;
-                case'3': if(stateButtons[2]&&!stateButtons[2].disabled)stateButtons[2].dispatchEvent(new MouseEvent('mouseup', {bubbles:true, button:0})); break;
-                case'4': if(stateButtons[3]&&!stateButtons[3].disabled)stateButtons[3].dispatchEvent(new MouseEvent('mouseup', {bubbles:true, button:0})); break;
+                case'1': if(memButtons[0]&&!memButtons[0].disabled)memButtons[0].click(); break;
+                case'2': if(memButtons[1]&&!memButtons[1].disabled)memButtons[1].click(); break;
+                case'3': if(memButtons[2]&&!memButtons[2].disabled)memButtons[2].click(); break;
+                case'4': if(memButtons[3]&&!memButtons[3].disabled)memButtons[3].click(); break;
                 case'5': triggerSampleOn(0); break;
                 case'6': triggerSampleOn(1); break;
                 case'7': triggerSampleOn(2); break;
@@ -4767,7 +5388,7 @@ function drawDrawnPaths(ctx, width, height) {
     }
 
     function scheduleNextSpectralGrain() {
-        if (!isSpectralSynthActive || !mainRecorderAudioBuffer || !lastSpectralCoords.active || pathPlaybackRequestID !== null || isDrawingPath) {
+        if (!isSpectralSynthActive || !mainRecorderAudioBuffer || !lastSpectralCoords.active || pathPlaybackRequestID !== null) {
             return;
         }
 
