@@ -1651,6 +1651,49 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // --- FIN LÓGICA MODO FÁCIL ---
 
+  // --- CONEXIONES PARA CONTROLES DE MODO FÁCIL ---
+    console.log("Conectando controles de Modo Fácil...");
+
+    const easyModeRecordBtn = document.getElementById('easyModeRecordBtn');
+    const easyModeAppendBtn = document.getElementById('easyModeAppendBtn');
+    const easyModeOverdubBtn = document.getElementById('easyModeOverdubBtn');
+    const easyModeClearBtn = document.getElementById('easyModeClearBtn');
+    const easyModeRecordMasterBtn = document.getElementById('easyModeRecordMasterBtn');
+    const easyModePlayMasterBtn = document.getElementById('easyModePlayMasterBtn');
+    
+    // 1. Botón principal de Grabación / Parada del buffer
+    if (easyModeRecordBtn) {
+        easyModeRecordBtn.addEventListener('click', () => {
+            // Verificamos si ya se está grabando. El botón de stop original
+            // es la mejor manera de saberlo: si no está deshabilitado, es que se está grabando.
+            const isRecording = !document.getElementById('stopRecBtn').disabled;
+            if (isRecording) {
+                document.getElementById('stopRecBtn').click();
+            } else {
+                document.getElementById('recordBtn').click();
+            }
+        });
+    }
+
+    // 2. Otros botones de control del buffer
+    if (easyModeAppendBtn) easyModeAppendBtn.addEventListener('click', () => document.getElementById('appendRecBtn').click());
+    if (easyModeOverdubBtn) easyModeOverdubBtn.addEventListener('click', () => document.getElementById('overdubNowBtn').click());
+    if (easyModeClearBtn) easyModeClearBtn.addEventListener('click', () => document.getElementById('clearRecBtn').click());
+
+    // 3. Botones de grabación y reproducción del Master
+    if (easyModeRecordMasterBtn) {
+        easyModeRecordMasterBtn.addEventListener('click', () => {
+             document.getElementById('recordMasterBtn').click();
+        });
+    }
+    if (easyModePlayMasterBtn) {
+        easyModePlayMasterBtn.addEventListener('click', () => {
+            // El botón original de "Play Grab." ya maneja la lógica de pausa,
+            // por lo que podemos llamarlo siempre.
+            document.getElementById('playMasterBufferBtn').click();
+        });
+    }
+
     const controlDefaults = {};
     function saveDefaults() {
         document.querySelectorAll('.dial').forEach(el => {
