@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SUSPIRA - Playground de Síntesis </title>
+  <title>SUSPIRA - Playground de Síntesis</title>
+  <link rel="icon" type="image/png" href="1.png">
   <script src="soundtouch-compiled.js"></script>
   <style>
     :root {
@@ -62,23 +63,59 @@
         justify-content: center;
         align-items: center;
         transition: opacity 0.5s ease;
+        overflow: hidden;
     }
     #loading-overlay video {
-        width: 30vw;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        width: auto;
         height: auto;
-        max-width: 400px;
-        margin-bottom: 20px;
+        transform: translate(-50%, -50%) scale(1.5);
+        object-fit: cover;
+        z-index: 1;
+        opacity: 0.35; /* CAMBIO: Opacidad reducida y consistente */
+        transition: opacity 0.5s ease;
     }
-    #startButton {
+    #loading-text {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1.5rem;
+        z-index: 3;
+        animation: pulse 1.8s infinite ease-in-out;
+    }
+    @keyframes pulse {
+        0% { opacity: 0.4; }
+        50% { opacity: 1; }
+        100% { opacity: 0.4; }
+    }
+    #loading-buttons-container {
         display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        z-index: 2;
+        position: relative;
+    }
+     #bottom-buttons-row {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+}
+    #loading-buttons-container a,
+    #loading-buttons-container button {
         background-color: transparent;
         border: none;
         color: rgba(255, 255, 255, 0.7);
         font-size: 1.2rem;
         cursor: pointer;
         transition: color 0.3s ease;
+        text-decoration: none;
+        padding: 0 5px; /* Add some padding for touch targets */
     }
-    #startButton:hover {
+    #loading-buttons-container a:hover,
+    #loading-buttons-container button:hover {
         color: white;
     }
 
@@ -103,7 +140,7 @@
         border-radius: 0;
     }
 
-    body.easy-mode-active #reverb-eq-visualizer-casilla > *:not(#spectrumCanvas):not(.loader-overlay):not(#easyModeExitBtn):not(#easyModeSourceControls):not(#source-controls-casilla):not(#easyModeTopControls):not(#easyModeBottomControls):not(#easyModeGranulatorContainer) {
+    body.easy-mode-active #reverb-eq-visualizer-casilla > *:not(#spectrumCanvas):not(.loader-overlay):not(#easyModeExitBtn):not(#easyModeSourceControls):not(#source-controls-casilla):not(#easyModeTopControls):not(#easyModeBottomControls):not(#easyModeFadersContainer) {
         display: none;
     }
     
@@ -167,14 +204,14 @@
     body.easy-mode-active:hover #easyModeExitBtn,
     body.easy-mode-active:hover #easyModeTopControls,
     body.easy-mode-active:hover #easyModeBottomControls,
-    body.easy-mode-active:hover #easyModeGranulatorContainer {
+    body.easy-mode-active:hover #easyModeFadersContainer {
         opacity: 0.6;
     }
     body.easy-mode-active #easyModeSourceControls:hover,
     body.easy-mode-active #easyModeExitBtn:hover,
     body.easy-mode-active #easyModeTopControls:hover,
     body.easy-mode-active #easyModeBottomControls:hover,
-    body.easy-mode-active #easyModeGranulatorContainer:hover {
+    body.easy-mode-active #easyModeFadersContainer:hover {
         opacity: 1;
     }
     
@@ -266,27 +303,45 @@
         justify-content: center;
     }
     
-    #easyModeGranulatorContainer {
+    #easyModeFadersContainer {
         display: none;
         position: absolute;
         bottom: 20px;
         right: 20px;
         z-index: 2100;
-        width: 25px;
-        height: 150px;
+        gap: 15px;
+        align-items: flex-end;
         opacity: 0;
         transition: opacity 0.25s ease;
     }
-    body.easy-mode-active #easyModeGranulatorContainer {
+    
+    .easy-mode-fader-wrapper {
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 6px;
+        width: 25px;
+        height: 150px;
     }
-    #easyModeGranulatorVolume {
+
+    .easy-mode-fader-wrapper label {
+        color: white;
+        font-size: 0.7rem;
+        opacity: 0.8;
+        white-space: nowrap;
+    }
+    
+    #easyModeGranulatorVolume, #easyModeMasterVolume {
         writing-mode: bt-lr;
         -webkit-appearance: slider-vertical;
         width: 8px;
-        height: 140px;
+        height: 120px;
+        margin: 0;
+    }
+
+    body.easy-mode-active #easyModeFadersContainer {
+        display: flex;
     }
 
     h1, h2, h3, h4 { text-align: center; margin-top: 0.4em; margin-bottom: 0.4em; }
@@ -586,7 +641,7 @@
     }
     #reverb-eq-visualizer-casilla label.canvas-label { margin-top: 10px; margin-bottom: 5px; font-size: 1em; font-weight: bold; }
 
-    #undoDrawingBtn, #midiMapBtn, #togglePatchBayBtn, #clearDrawingBtn, #toggleFullscreenBtn {
+    #undoDrawingBtn, #midiMapBtn, #togglePatchBayBtn, #clearDrawingBtn, #toggleFullscreenBtn, #saveSessionBtn, #infoBtn {
       font-size: 0.7rem; padding: 3px 6px; min-height: 22px;
     }
     #midiMapBtn.active {
@@ -844,7 +899,9 @@
       margin: 0;
     }
     
-    body.midi-mapping-active .mappable, body.midi-mapping-active .eq-band-mappable {
+    body.midi-mapping-active .mappable, 
+    body.midi-mapping-active .eq-band-mappable,
+    body.midi-mapping-active #recordedWaveform {
       outline: 2px solid var(--highlight-color);
       outline-offset: 2px;
       cursor: copy !important;
@@ -890,20 +947,160 @@
     button.automation-armed {
         animation: blink-red 1s infinite;
     }
-    button.automation-has-data {
+    button.automation-has-data,
+    button.state-has-data {
         background-color: green;
     }
     button.automation-playing {
         background-color: lightblue;
         color: black;
     }
+    
+    /* --- Estilos para el Modal de Guardado --- */
+    #save-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.6);
+        z-index: 8000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    #save-modal-container {
+        background-color: var(--primary-bg-color);
+        border: 1px solid var(--highlight-color);
+        border-radius: 6px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 90%;
+        max-width: 350px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+    }
+    #save-modal-container label {
+      font-size: 0.9rem;
+    }
+    #save-modal-container input[type="text"] {
+        width: 100%;
+        padding: 8px;
+        border-radius: 3px;
+        border: 1px solid #777;
+        background-color: #444;
+        color: var(--text-color);
+        font-family: inherit;
+        font-size: 0.9rem;
+    }
+     #save-modal-container input[type="text"]:focus {
+        outline: 1px solid var(--highlight-color);
+     }
+    #save-modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 8px;
+    }
+    #save-modal-buttons button {
+      padding: 6px 14px;
+    }
+    #save-modal-buttons button#confirm-save-btn {
+        background-color: var(--highlight-color);
+        color: white;
+    }
+
+    /* --- NUEVO: Estilos para el Modal de Información --- */
+    #info-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.6);
+        z-index: 8000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    #info-modal-container {
+        background-color: var(--primary-bg-color);
+        border: 1px solid var(--highlight-color);
+        border-radius: 6px;
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        position: relative;
+    }
+    #info-modal-container h3 {
+      margin: 0 0 10px 0;
+      text-align: left;
+    }
+    #info-modal-container .info-section {
+      font-size: 0.9rem;
+    }
+    #info-modal-container .info-section strong {
+      color: var(--highlight-color);
+      display: block;
+      margin-bottom: 5px;
+    }
+    #info-modal-container .info-section p,
+    #info-modal-container .info-section table {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #ddd;
+    }
+    #info-modal-container #info-modal-eq-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    #info-modal-container #info-modal-eq-table th,
+    #info-modal-container #info-modal-eq-table td {
+      border: 1px solid #555;
+      padding: 5px;
+      text-align: center;
+    }
+    #info-modal-container #info-modal-eq-table th {
+      background-color: #444;
+    }
+    #info-modal-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 25px;
+        height: 25px;
+        background-color: transparent;
+        border: none;
+        color: white;
+        font-size: 1.6rem;
+        line-height: 1;
+        padding: 0;
+        cursor: pointer;
+        opacity: 0.7;
+    }
+    #info-modal-close-btn:hover {
+        opacity: 1;
+    }
+
 
   </style>
 </head>
 <body>
-  <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: black; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease;">
-    <video src="INFO.mov" autoplay muted loop style="width: 30vw; height: auto; max-width: 400px; margin-bottom: 20px;"></video>
-    <button id="startButton">_inicio</button>
+  <div id="loading-overlay">
+    <video src="INFO.mov" autoplay muted loop></video>
+    <div id="loading-text">_cargando</div>
+    <div id="loading-buttons-container">
+        <button id="startButton">_inicio</button>
+        <div id="bottom-buttons-row">
+            <a href="info.html">_info</a>
+            <a href="documentacion.html">_documentación</a>
+        </div>
+    </div>
   </div>
   <main class="main-container">
     <div class="top-controls-grid">
@@ -1033,7 +1230,7 @@
       <div class="column-middle">
         <div class="casilla" id="reverb-eq-visualizer-casilla">
             <button id="easyModeExitBtn" aria-label="Salir de Modo Fácil">
-                <img src="logo.png" alt="Salir de Modo Fácil">
+                <img src="sintxart.png" alt="Salir de Modo Fácil">
             </button>
             <div id="easyModeSourceControls">
                 <div class="control-group">
@@ -1042,6 +1239,16 @@
                 </div>
                 <button id="easyModeSourceToggleBtn" title="Cambiar a Micrófono">···</button>
                 <button id="easyModePanelToggleBtn" title="Abrir panel de fuente completo">↗</button>
+            </div>
+             <div id="easyModeFadersContainer">
+                <div class="easy-mode-fader-wrapper">
+                    <label for="easyModeMasterVolume">Master</label>
+                    <input type="range" id="easyModeMasterVolume" min="0" max="1.5" step="0.01" value="1.0">
+                </div>
+                <div class="easy-mode-fader-wrapper">
+                    <label for="easyModeGranulatorVolume">Grl.</label>
+                    <input type="range" id="easyModeGranulatorVolume" min="0" max="1" step="0.01" value="0.2">
+                </div>
             </div>
             <div id="easyModeTopControls">
                 <button id="easyModeAppendBtn" class="easy-mode-btn-round" title="Append (Añadir Grabación)">+</button>
@@ -1052,9 +1259,6 @@
             <div id="easyModeBottomControls">
                  <button id="easyModeRecordMasterBtn" class="easy-mode-btn-round main-rec" title="Grabar/Detener Master">●</button>
                  <button id="easyModePlayMasterBtn" class="easy-mode-btn-round" title="Reproducir Grabación Master">▶</button>
-            </div>
-            <div id="easyModeGranulatorContainer">
-                <input type="range" id="easyModeGranulatorVolume" min="0" max="1" step="0.01" value="0.2">
             </div>
             <div class="reverb-eq-header"></div>
             <canvas id="spectrumCanvas" width="600" height="300"></canvas>
@@ -1080,6 +1284,7 @@
                     </div>
                     <button id="clearDrawingBtn" aria-label="Limpiar Dibujo Espectral">Limpiar Dibujo</button>
                     <button id="undoDrawingBtn" aria-label="Deshacer último trazo">Retroceder</button>
+                    <button id="saveSessionBtn" aria-label="Guardar Sesión">Guardar Sesión</button>
                 </div>
             </div>
         </div>
@@ -1100,9 +1305,9 @@
             </div>
           </div>
           <div id="masterVolumeControl">
-            <label for="masterVolumeFader" id="masterVolumeLabel">Volumen Principal (Dry):</label>
-            <input type="range" id="masterVolumeFader" min="0" max="1" step="0.01" value="1" class="mappable">
-            <input type="number" id="masterVolumeFaderValueInput" class="fader-value-input" min="0" max="1" step="0.01" value="1" aria-labelledby="masterVolumeLabel">
+            <label for="masterVolumeFader" id="masterVolumeLabel">Volumen Master:</label>
+            <input type="range" id="masterVolumeFader" min="0" max="1.5" step="0.01" value="1" class="mappable">
+            <input type="number" id="masterVolumeFaderValueInput" class="fader-value-input" min="0" max="1.5" step="0.01" value="1" aria-labelledby="masterVolumeLabel">
             <span id="masterVolumeValue" aria-live="polite">0.0 dB</span>
           </div>
         </div>
@@ -1113,6 +1318,7 @@
                 <button id="toggleFullscreenBtn" aria-label="Activar Modo fácil">Modo fácil</button>
                 <button id="midiMapBtn" aria-label="Activar mapeo MIDI">MIDI</button>
                 <button id="togglePatchBayBtn" aria-label="Toggle Patch Bay">PatchBay</button>
+                <button id="infoBtn" aria-label="Mostrar información de la sesión">Info</button>
             </div>
             <div class="utility-row">
                 <div class="btn-group save-action-buttons">
@@ -1176,43 +1382,44 @@
             </div>
         </div>
         <div class="casilla" id="sidechain-envelope-casilla">
-          <div class="switch-control-row">
-            <h4>Sidechain Envelope (Post-Reverb)</h4>
-            <label class="toggle-switch-container">
-                <input type="checkbox" id="sidechainEnvelopePowerSwitch" class="toggle-switch-input">
-                <span class="toggle-switch-slider"></span>
-            </label>
-          </div>
-          <div class="dial-controls-container">
-            <div class="dial-container" id="sidechainThresholdDialContainer">
-              <label for="sidechainThresholdDial" id="sidechainThresholdDialLabel">Umbral</label>
-              <div class="dial mappable" id="sidechainThresholdDial" data-min="-70" data-max="0" data-step="1" data-value="-24" data-unit="dB" data-decimals="0">
-                <div class="dial-indicator"></div>
-              </div>
-              <input type="number" class="dial-value-input" id="sidechainThresholdDialValue" value="-24" min="-70" max="0" step="1" data-unit="dB" data-decimals="0" aria-labelledby="sidechainThresholdDialLabel">
-            </div>
-            <div class="dial-container" id="sidechainAttackDialContainer">
-              <label for="sidechainAttackDial" id="sidechainAttackDialLabel">Ataque</label>
-              <div class="dial mappable" id="sidechainAttackDial" data-min="0.001" data-max="0.5" data-step="0.001" data-value="0.01" data-unit="s" data-decimals="3">
-                <div class="dial-indicator"></div>
-              </div>
-              <input type="number" class="dial-value-input" id="sidechainAttackDialValue" value="0.010" min="0.001" max="0.5" step="0.001" data-unit="s" data-decimals="3" aria-labelledby="sidechainAttackDialLabel">
-            </div>
-             <div class="dial-container" id="sidechainReleaseDialContainer">
-              <label for="sidechainReleaseDial" id="sidechainReleaseDialLabel">Relaj.</label>
-              <div class="dial mappable" id="sidechainReleaseDial" data-min="0.01" data-max="1.0" data-step="0.01" data-value="0.1" data-unit="s" data-decimals="2">
-                <div class="dial-indicator"></div>
-              </div>
-              <input type="number" class="dial-value-input" id="sidechainReleaseDialValue" value="0.10" min="0.01" max="1.0" step="0.01" data-unit="s" data-decimals="2" aria-labelledby="sidechainReleaseDialLabel">
-            </div>
-            <div class="dial-container" id="sidechainAmountDialContainer">
-              <label for="sidechainAmountDial" id="sidechainAmountDialLabel">Cantidad</label>
-              <div class="dial mappable" id="sidechainAmountDial" data-min="0" max="12000" data-step="100" data-value="1000" data-unit="Hz" data-decimals="0">
-                <div class="dial-indicator"></div>
-              </div>
-              <input type="number" class="dial-value-input" id="sidechainAmountDialValue" value="1000" min="0" max="12000" step="100" data-unit="Hz" data-decimals="0" aria-labelledby="sidechainAmountDialLabel">
-            </div>
-          </div>
+  <div class="switch-control-row">
+    <h4>Sidechain Envelope (Post-Reverb)</h4>
+    <label class="toggle-switch-container">
+        <input type="checkbox" id="sidechainEnvelopePowerSwitch" class="toggle-switch-input">
+        <span class="toggle-switch-slider"></span>
+    </label>
+  </div>
+  <div class="dial-controls-container">
+    <div class="dial-container" id="sidechainThresholdDialContainer">
+      <label for="sidechainThresholdDial" id="sidechainThresholdDialLabel">Umbral</label>
+      <div class="dial mappable" id="sidechainThresholdDial" data-min="-70" data-max="0" data-step="1" data-value="-24" data-unit="dB" data-decimals="0">
+        <div class="dial-indicator"></div>
+      </div>
+      <input type="number" class="dial-value-input" id="sidechainThresholdDialValue" value="-24" min="-70" max="0" step="1" data-unit="dB" data-decimals="0" aria-labelledby="sidechainThresholdDialLabel">
+    </div>
+    <div class="dial-container" id="sidechainAttackDialContainer">
+      <label for="sidechainAttackDial" id="sidechainAttackDialLabel">Ataque</label>
+      <div class="dial mappable" id="sidechainAttackDial" data-min="0.001" data-max="0.5" data-step="0.001" data-value="0.01" data-unit="s" data-decimals="3">
+        <div class="dial-indicator"></div>
+      </div>
+      <input type="number" class="dial-value-input" id="sidechainAttackDialValue" value="0.010" min="0.001" max="0.5" step="0.001" data-unit="s" data-decimals="3" aria-labelledby="sidechainAttackDialLabel">
+    </div>
+     <div class="dial-container" id="sidechainReleaseDialContainer">
+      <label for="sidechainReleaseDial" id="sidechainReleaseDialLabel">Relaj.</label>
+      <div class="dial mappable" id="sidechainReleaseDial" data-min="0.01" data-max="1.0" data-step="0.01" data-value="0.1" data-unit="s" data-decimals="2">
+        <div class="dial-indicator"></div>
+      </div>
+      <input type="number" class="dial-value-input" id="sidechainReleaseDialValue" value="0.10" min="0.01" max="1.0" step="0.01" data-unit="s" data-decimals="2" aria-labelledby="sidechainReleaseDialLabel">
+    </div>
+    <div class="dial-container" id="sidechainAmountDialContainer">
+      <label for="sidechainAmountDial" id="sidechainAmountDialLabel">Cantidad</label>
+      <div class="dial mappable" id="sidechainAmountDial" data-min="0" data-max="12000" data-step="100" data-value="1000" data-unit="Hz" data-decimals="0">
+        <div class="dial-indicator"></div>
+      </div>
+      <input type="number" class="dial-value-input" id="sidechainAmountDialValue" value="1000" min="0" max="12000" step="100" data-unit="Hz" data-decimals="0" aria-labelledby="sidechainAmountDialLabel">
+    </div>
+  </div>
+</div>
         </div>
         <div class="casilla" id="routing-patch-bay-casilla">
           <button class="close-btn" aria-label="Cerrar Patch Bay">&times;</button>
@@ -1414,6 +1621,38 @@
       </div>
     </section>
   </main>
+  <div id="info-modal-overlay" class="hidden">
+    <div id="info-modal-container">
+        <button id="info-modal-close-btn" aria-label="Cerrar">&times;</button>
+        <h3>Información de la Sesión</h3>
+        
+        <div class="info-section">
+            <strong>Archivo de Audio</strong>
+            <p id="info-audio-file-name">No hay ningún archivo cargado.</p>
+        </div>
+        
+        <div class="info-section">
+            <strong>Sample Rate del Sistema</strong>
+            <p id="info-sample-rate">N/A</p>
+        </div>
+
+        <div class="info-section">
+            <strong>Valores del Ecualizador</strong>
+            <table id="info-modal-eq-table">
+                <thead>
+                    <tr>
+                        <th>Banda</th>
+                        <th>Frecuencia (Hz)</th>
+                        <th>Ganancia (dB)</th>
+                        <th>Q</th>
+                    </tr>
+                </thead>
+                <tbody id="info-eq-table-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+  </div>
   <script>
 function degToRad(deg) { return deg * (Math.PI / 180); }
 function radToDeg(rad) { return rad * (180 / Math.PI); }
@@ -1520,7 +1759,13 @@ function initDial(dialElement) {
     dial.addEventListener('touchstart', (e) => { isDragging = true; onMove(e); e.preventDefault(); }, { passive: false });
     window.addEventListener('mousemove', (e) => { if (isDragging) onMove(e); });
     window.addEventListener('touchmove', (e) => { if (isDragging) onMove(e); }, { passive: false });
-    const stopDragging = () => { if (isDragging) { isDragging = false; document.body.style.cursor = 'default'; dial.style.cursor = 'grab'; } };
+    const stopDragging = () => { 
+        if (isDragging) { 
+            isDragging = false; 
+            document.body.style.cursor = 'default'; 
+            dial.style.cursor = 'grab';
+        } 
+    };
     window.addEventListener('mouseup', stopDragging);
     window.addEventListener('touchend', stopDragging);
 }
@@ -1560,10 +1805,14 @@ function makeDraggable(element, handle) {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM Content Loaded. Initializing Dials, Faders and UI...");
 
+    const sourceControlsCasilla = document.getElementById('source-controls-casilla');
+    
+    // CORRECCIÓN 5: Evitar que el panel de micrófono se cierre solo.
+    sourceControlsCasilla.addEventListener('click', (e) => e.stopPropagation());
+
     // --- LÓGICA MODO FÁCIL ---
     const toggleFullscreenBtn = document.getElementById('toggleFullscreenBtn');
     const visualizerCasilla = document.getElementById('reverb-eq-visualizer-casilla');
-    const sourceControlsCasilla = document.getElementById('source-controls-casilla');
     
     const visualizerOriginalParent = visualizerCasilla.parentNode;
     const visualizerOriginalNextSibling = visualizerCasilla.nextSibling;
@@ -1574,7 +1823,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const easyModeMicSelect = document.getElementById('easyModeMicSelect');
     const easyModeSourceToggleBtn = document.getElementById('easyModeSourceToggleBtn');
     const easyModePanelToggleBtn = document.getElementById('easyModePanelToggleBtn');
-
+    const easyModeSourceControls = document.getElementById('easyModeSourceControls');
 
     function toggleEasyMode() {
         const isInEasyMode = document.body.classList.contains('easy-mode-active');
@@ -1651,7 +1900,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     // --- FIN LÓGICA MODO FÁCIL ---
 
-  // --- CONEXIONES PARA CONTROLES DE MODO FÁCIL ---
+    // --- CONEXIONES PARA CONTROLES DE MODO FÁCIL ---
     console.log("Conectando controles de Modo Fácil...");
 
     const easyModeRecordBtn = document.getElementById('easyModeRecordBtn');
@@ -1709,8 +1958,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     saveDefaults();
 
-    document.querySelectorAll('.dial').forEach(dialElement => { initDial(dialElement); });
-
+    document.querySelectorAll('.dial').forEach(dialElement => { 
+        try {
+            initDial(dialElement);
+        } catch(e) {
+            console.error(`Failed to initialize dial ${dialElement.id}:`, e);
+        }
+    });
+    
     document.querySelectorAll('input[type="range"]').forEach(rangeEl => {
         const rangeId = rangeEl.id;
         let numberInputEl;
@@ -1797,12 +2052,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Sincronización Volumen Master
     const masterVolFader = document.getElementById('masterVolumeFader');
+    const easyModeMasterVolFader = document.getElementById('easyModeMasterVolume');
     const masterVolValueDisplaySpan = document.getElementById('masterVolumeValue');
-    if (masterVolFader && masterVolValueDisplaySpan) {
-        const initialLinearVal = parseFloat(masterVolFader.value);
-        masterVolValueDisplaySpan.textContent = `${(initialLinearVal > 0 ? 20 * Math.log10(initialLinearVal) : -Infinity).toFixed(1)} dB`;
+    
+    function syncMasterVolume(newValue, sourceElement) {
+        const newV = parseFloat(newValue);
+        if (window.syncAudioMasterVolume) { // Llama a la función global en el script de audio
+            window.syncAudioMasterVolume(newV);
+        }
+
+        if (sourceElement !== masterVolFader) masterVolFader.value = newV;
+        if (sourceElement !== easyModeMasterVolFader) easyModeMasterVolFader.value = newV;
+
+        if (masterVolValueDisplaySpan) {
+            const dB = newV > 0 ? (20 * Math.log10(newV)).toFixed(1) : '-∞';
+            masterVolValueDisplaySpan.textContent = `${dB} dB`;
+        }
     }
+    
+    masterVolFader.addEventListener('input', (e) => syncMasterVolume(e.target.value, masterVolFader));
+    easyModeMasterVolFader.addEventListener('input', (e) => syncMasterVolume(e.target.value, easyModeMasterVolFader));
+
+    // Inicializar valor
+    syncMasterVolume(masterVolFader.value, masterVolFader);
+
 
     const togglePatchBayBtn = document.getElementById('togglePatchBayBtn');
     const patchBayCasilla = document.getElementById('patch-bay-casilla');
@@ -1851,6 +2126,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }, true);
+    
 });
 
 (function(){
@@ -1933,6 +2209,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let mediaStream, currentSourceNode;
     let audioBuffer = null;
+    let loadedAudioFileName = null; // NUEVO: para guardar el nombre del archivo
     let isMainPlayerPlaying = false;
     let mainPlayerStartOffset = 0, mainPlayerStartTime = 0, mainPlayerDuration = 0;
     let currentMicChannelIndex = 0;
@@ -2084,10 +2361,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const spectralSynthDrawModeSwitch = document.getElementById('spectralSynthDrawModeSwitch');
     const clearDrawingBtn = document.getElementById('clearDrawingBtn');
     const undoDrawingBtn = document.getElementById('undoDrawingBtn');
+    const saveSessionBtn = document.getElementById('saveSessionBtn');
     const animationPowerSwitch = document.getElementById('animationPowerSwitch');
 
     const sidechainEnvelopePowerSwitch = document.getElementById('sidechainEnvelopePowerSwitch');
-    let sidechainThresholdDialEl, sidechainAttackDialEl, sidechainReleaseDialEl, sidechainAmountDialEl;
+const sidechainThresholdDialEl = document.getElementById('sidechainThresholdDial');
+const sidechainAttackDialEl = document.getElementById('sidechainAttackDial');
+const sidechainReleaseDialEl = document.getElementById('sidechainReleaseDial');
+const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
 
     const sourceSidechainSendSwitches = document.querySelectorAll('.source-sidechain-switch');
 
@@ -2128,6 +2409,234 @@ document.addEventListener('DOMContentLoaded', function() {
     let patchParametersInfo = {};
     let patchMappings = {};
     let isPatchBayActive = false;
+
+    // --- NUEVAS FUNCIONES Y LÓGICA PARA GUARDAR/CARGAR SESIÓN ---
+    function showSaveModal() {
+        const overlay = document.createElement('div');
+        overlay.id = 'save-modal-overlay';
+
+        const date = new Date();
+        const defaultFilename = `suspira_session_${date.getFullYear()}${(date.getMonth() + 1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}_${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
+
+        overlay.innerHTML = `
+            <div id="save-modal-container">
+                <label for="session-filename">Nombre del Archivo de Sesión:</label>
+                <input type="text" id="session-filename" value="${defaultFilename}">
+                <div id="save-modal-buttons">
+                    <button id="cancel-save-btn">Cancelar</button>
+                    <button id="confirm-save-btn">Descargar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('cancel-save-btn').addEventListener('click', hideSaveModal);
+        document.getElementById('confirm-save-btn').addEventListener('click', () => {
+            const filename = document.getElementById('session-filename').value;
+            saveSession(filename);
+        });
+        overlay.addEventListener('click', (e) => {
+            if (e.target.id === 'save-modal-overlay') {
+                hideSaveModal();
+            }
+        });
+    }
+
+    function hideSaveModal() {
+        const overlay = document.getElementById('save-modal-overlay');
+        if (overlay) {
+            document.body.removeChild(overlay);
+        }
+    }
+
+    async function saveSession(filename = 'session') {
+        console.log("Iniciando guardado de sesión...");
+        showLoader("Guardando sesión...");
+
+        try {
+            const stateBlob = new Blob([JSON.stringify(getCurrentAppState())], { type: 'application/json' });
+            
+            const audioBlobs = [];
+            const toc = {
+                parts: [
+                    { name: 'appState', type: 'application/json', size: stateBlob.size }
+                ]
+            };
+
+            if (mainRecorderAudioBuffer) {
+                const wavBlob = audioBufferToWavBlob(mainRecorderAudioBuffer);
+                audioBlobs.push(wavBlob);
+                toc.parts.push({ name: 'mainRecorderAudioBuffer', type: 'audio/wav', size: wavBlob.size });
+            }
+            if (masterRecordedAudioBuffer) {
+                const wavBlob = audioBufferToWavBlob(masterRecordedAudioBuffer);
+                audioBlobs.push(wavBlob);
+                toc.parts.push({ name: 'masterRecordedAudioBuffer', type: 'audio/wav', size: wavBlob.size });
+            }
+
+            const tocString = JSON.stringify(toc);
+            const tocBlob = new Blob([tocString], { type: 'application/json' });
+            
+            // Header: 8 bytes (64-bit unsigned integer) para guardar el tamaño de la TOC
+            const header = new ArrayBuffer(8);
+            new BigUint64Array(header)[0] = BigInt(tocBlob.size);
+            const headerBlob = new Blob([header]);
+
+            // Ensamblar el archivo final
+            const finalBlob = new Blob([headerBlob, tocBlob, stateBlob, ...audioBlobs]);
+            
+            const downloadUrl = URL.createObjectURL(finalBlob);
+            const anchor = document.createElement('a');
+            anchor.style.display = 'none';
+            anchor.href = downloadUrl;
+            anchor.download = `${filename.replace(/\.suspira$/, '')}.suspira`;
+            document.body.appendChild(anchor);
+            anchor.click();
+
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(downloadUrl);
+            console.log("Sesión guardada exitosamente.");
+
+        } catch (error) {
+            console.error("Error al guardar la sesión:", error);
+            alert("Ocurrió un error al guardar la sesión.");
+        } finally {
+            hideLoader();
+            hideSaveModal();
+        }
+    }
+    
+    async function loadSessionFromFile(file) {
+        console.log("Iniciando carga de sesión...");
+        showLoader("Cargando sesión...");
+
+        loadedAudioFileName = file.name; // Guardar nombre de archivo de sesión
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const fullFileBlob = new Blob([event.target.result]);
+
+                // 1. Leer el Header para obtener el tamaño de la Tabla de Contenidos (TOC)
+                const headerBuffer = await fullFileBlob.slice(0, 8).arrayBuffer();
+                const tocSize = new BigUint64Array(headerBuffer)[0];
+
+                // 2. Leer y parsear la TOC
+                const tocBlob = fullFileBlob.slice(8, 8 + Number(tocSize));
+                const toc = JSON.parse(await tocBlob.text());
+
+                if (!toc.parts || !toc.parts.find(p => p.name === 'appState')) {
+                    throw new Error("El archivo no parece ser una sesión válida de SUSPIRA (TOC inválida).");
+                }
+
+                let offset = 8 + Number(tocSize);
+                let appState = null;
+                const audioBuffers = {};
+
+                // 3. Usar la TOC para "rebanar" el archivo y procesar cada parte
+                for (const part of toc.parts) {
+                    const partBlob = fullFileBlob.slice(offset, offset + part.size);
+                    offset += part.size;
+
+                    if (part.name === 'appState') {
+                        appState = JSON.parse(await partBlob.text());
+                    } else if (part.type === 'audio/wav') {
+                        const arrayBuffer = await partBlob.arrayBuffer();
+                        if (arrayBuffer.byteLength > 44) { 
+                           audioBuffers[part.name] = await audioContext.decodeAudioData(arrayBuffer);
+                        } else {
+                           audioBuffers[part.name] = null;
+                        }
+                    }
+                }
+
+                if (!appState) {
+                    throw new Error("No se encontró el estado de la aplicación en el archivo de sesión.");
+                }
+                
+                // 4. Asignar los buffers de audio reconstruidos
+                mainRecorderAudioBuffer = audioBuffers['mainRecorderAudioBuffer'] || null;
+                masterRecordedAudioBuffer = audioBuffers['masterRecordedAudioBuffer'] || null;
+                
+                // CORRECCIÓN 2: Asignar el audio cargado al reproductor de fuente y actualizar su UI.
+                if (mainRecorderAudioBuffer) {
+                    audioBuffer = mainRecorderAudioBuffer;
+                    mainPlayerDuration = audioBuffer.duration;
+                    if (timeline) { timeline.max = mainPlayerDuration; }
+                    if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
+                    if (playPauseBtn) playPauseBtn.disabled = false;
+                    if (!appState.loadedAudioFileName) { // Si el estado guardado no tenía el nombre, usar el del archivo de sesión
+                        loadedAudioFileName = file.name;
+                    }
+                }
+
+
+                // 5. Recrear los buffers de loop dedicados a partir del buffer principal y las selecciones guardadas
+                 for(let i = 0; i < 3; i++) {
+                     const selection = appState.loopRegionSelections[i];
+                     if (mainRecorderAudioBuffer && selection && selection.end > selection.start) {
+                         loopDedicatedBuffers[i] = extractAudioBufferSegment(
+                             mainRecorderAudioBuffer, selection.start, selection.end, audioContext
+                         );
+                     } else {
+                        loopDedicatedBuffers[i] = null;
+                     }
+                }
+
+                // 6. Aplicar todo el estado de la UI
+                applySavedAppState(appState);
+                
+                // 7. Actualizar visualizaciones y estados finales
+                updateAllVisualsFromState(); // <--- CORRECCIÓN 1 y 2
+                if (masterRecordedAudioBuffer) {
+                    masterDurationDisplay.textContent = formatTime(masterRecordedAudioBuffer.duration);
+                    masterTimelineFader.max = masterRecordedAudioBuffer.duration;
+                }
+                updateMasterRecordingTimelineDisplay(true);
+                updateMainPlayerTimelineDisplay(true);
+
+
+                console.log("Sesión cargada exitosamente.");
+
+            } catch (error) {
+                console.error("Error al cargar la sesión:", error);
+                alert("Error al cargar el archivo de sesión. Puede estar corrupto o no ser compatible.");
+            } finally {
+                hideLoader();
+            }
+        };
+
+        reader.onerror = () => {
+             alert("No se pudo leer el archivo.");
+             hideLoader();
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+    
+    // Funciones auxiliares para mostrar/ocultar el loader
+    function showLoader(message) {
+        const loader = document.querySelector('#reverb-eq-visualizer-casilla .loader-overlay');
+        if (loader) {
+            const p = loader.querySelector('p');
+            if (p) p.textContent = message;
+            loader.classList.remove('hidden');
+        }
+    }
+
+    function hideLoader() {
+        const loader = document.querySelector('#reverb-eq-visualizer-casilla .loader-overlay');
+        if (loader) loader.classList.add('hidden');
+    }
+    // --- FIN DE LÓGICA PARA GUARDAR/CARGAR SESIÓN ---
+
+
+    // Función global para sincronizar el volumen master desde la UI
+    window.syncAudioMasterVolume = function(value) {
+        if (finalOutputGain && audioContext) {
+            finalOutputGain.gain.setTargetAtTime(value, audioContext.currentTime, 0.01);
+        }
+    }
 
     class EQBand {
         constructor(initialAngle, neutralRadius, centerX, centerY) {
@@ -2291,6 +2800,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 band.y = value.y;
                 band.q = value.q;
                 band.updateFilter(spectrumCanvas.width / 2, spectrumCanvas.height / 2, Math.min(spectrumCanvas.width, spectrumCanvas.height) / 3.5);
+            }
+            return;
+        }
+
+        if (paramId.startsWith('granulator_point_')) {
+            const index = parseInt(paramId.split('_')[2]);
+            if (samplerGrainPoints[index] && typeof value === 'number') {
+                samplerGrainPoints[index].x = value;
+                drawMainRecordedWaveform();
             }
             return;
         }
@@ -2652,6 +3170,31 @@ document.addEventListener('DOMContentLoaded', function() {
     function setupCanvasEventListeners() {
         if (!spectrumCanvas) return;
 
+        if(saveSessionBtn) {
+            saveSessionBtn.addEventListener('click', showSaveModal);
+        }
+
+        // --- Lógica de carga por Drag & Drop para sesiones ---
+        spectrumCanvas.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        spectrumCanvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.endsWith('.suspira')) {
+                    loadSessionFromFile(file);
+                } else if (file.type.startsWith('audio/')) {
+                    audioFileInput.files = files;
+                    audioFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+        // --- Fin de la lógica de carga ---
+
         if(animationPowerSwitch) {
             animationPowerSwitch.addEventListener('change', (e) => {
                 isAnimationEnabled = e.target.checked;
@@ -3000,6 +3543,7 @@ document.addEventListener('DOMContentLoaded', function() {
         recordSourceMixer = audioContext.createGain();
         recordSourceMixer.gain.value = 1.0;
         dryBus = audioContext.createGain();
+        dryBus.gain.value = 1.0; // El dry bus ahora está a volumen completo
         wetBus = audioContext.createGain();
         filePlayerDrySend = audioContext.createGain();
         filePlayerWetSend = audioContext.createGain();
@@ -3124,12 +3668,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
         const masterVolumeFader = document.getElementById('masterVolumeFader');
-        const masterVolValueDisplaySpan = document.getElementById('masterVolumeValue');
         if (masterVolumeFader) {
             masterVolumeFader.addEventListener('input', () => {
-                if (dryBus) dryBus.gain.value = parseFloat(masterVolumeFader.value);
-                const dB = masterVolumeFader.value > 0 ? (20 * Math.log10(masterVolumeFader.value)).toFixed(1) : '-∞';
-                if (masterVolValueDisplaySpan) masterVolValueDisplaySpan.textContent = `${dB} dB`;
+                // Esta lógica ahora está en el manejador `syncMasterVolume` en el script de UI.
             });
         }
         reverb_setupReverbControls();
@@ -3293,6 +3834,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!audioContext) { console.error("AudioContext no inicializado."); alert("Error: El motor de audio no está listo."); return; }
         const file = event.target.files[0];
         if (!file) return;
+        loadedAudioFileName = file.name; // Guardar el nombre del archivo
         const reader = new FileReader();
         reader.onload = function(e_reader) { processArrayBuffer(e_reader.target.result, false); };
         reader.onerror = function() { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer archivo."); drawInitialMessage("Error al leer archivo."); };
@@ -3320,21 +3862,25 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             if (isInitial) {
+                loadedAudioFileName = 'Output 1-2.wav'; // Nombre del archivo inicial
                 const spectralSynthPowerSwitchEl = document.getElementById('spectralSynthPowerSwitch');
                 if (spectralSynthPowerSwitchEl && !spectralSynthPowerSwitchEl.checked) {
                     spectralSynthPowerSwitchEl.checked = true;
                     spectralSynthPowerSwitchEl.dispatchEvent(new Event('change', { bubbles: true }));
                     console.log("Sintetizador Espectral activado por defecto al cargar audio inicial.");
                 }
-                const startButton = document.getElementById('startButton');
-                const video = document.querySelector('#loading-overlay video');
-                if (video) video.style.display = 'none';
-                if (startButton) {
-                    startButton.style.display = 'block';
-                    startButton.style.opacity = '0';
-                    setTimeout(() => startButton.style.opacity = '1', 100);
+                const loadingText = document.getElementById('loading-text');
+                const loadingButtonsContainer = document.getElementById('loading-buttons-container');
+                
+                if (loadingText) loadingText.style.display = 'none';
+                if (loadingButtonsContainer) {
+                    loadingButtonsContainer.style.display = 'flex';
+                    loadingButtonsContainer.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingButtonsContainer.style.opacity = '1';
+                       
+                    }, 100);
                 }
-
             }
 
             if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && isDrawModeActive && !isSpectralSynthActive) {
@@ -3346,6 +3892,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, function(error) {
             console.error("Error decodificando audio:", error); alert("Error al decodificar. Formato no compatible?");
             audioBuffer = null;
+            loadedAudioFileName = null;
             if (playPauseBtn) playPauseBtn.disabled = true;
             if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
             drawInitialMessage("Error al decodificar audio.");
@@ -3438,14 +3985,19 @@ document.addEventListener('DOMContentLoaded', function() {
     async function initAudioDevicesList() {
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) { if (micSelect) { micSelect.innerHTML = '<option value="">API no soportada</option>'; micSelect.disabled = true; } return; }
         try {
+            // Se necesita un permiso temporal para poder enumerar los dispositivos con sus nombres reales.
             const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            tempStream.getTracks().forEach(track => track.stop());
+            tempStream.getTracks().forEach(track => track.stop()); // Se detiene el stream temporal inmediatamente.
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             const audioInputDevices = devices.filter(device => device.kind === 'audioinput');
             
             const mainMicSelect = document.getElementById('micSelect');
             const easyModeMicSelect = document.getElementById('easyModeMicSelect');
             
+            // Guardar el dispositivo seleccionado actualmente, si hay alguno
+            const previouslySelectedDeviceId = mainMicSelect ? mainMicSelect.value : null;
+
             if (mainMicSelect) mainMicSelect.innerHTML = '';
             if (easyModeMicSelect) easyModeMicSelect.innerHTML = '';
 
@@ -3464,6 +4016,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (mainMicSelect) mainMicSelect.appendChild(option.cloneNode(true));
                 if (easyModeMicSelect) easyModeMicSelect.appendChild(option);
             });
+
+            // Intentar re-seleccionar el dispositivo que estaba activo
+            if (previouslySelectedDeviceId) {
+                const stillExists = audioInputDevices.some(d => d.deviceId === previouslySelectedDeviceId);
+                if (stillExists) {
+                    if(mainMicSelect) mainMicSelect.value = previouslySelectedDeviceId;
+                    if(easyModeMicSelect) easyModeMicSelect.value = previouslySelectedDeviceId;
+                }
+            }
+
         } catch (err) {
             const errorOption = new Option("Error al listar / Sin permiso", "");
             if(micSelect) { micSelect.innerHTML = ''; micSelect.appendChild(errorOption.cloneNode(true)); micSelect.disabled = true; }
@@ -3573,14 +4135,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (arrayBuffer.byteLength === 0) { if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(true); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true; } enableRecordingButtons(); currentRecordingMode = ""; return; }
                 const decodedAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 let resultingBuffer = null;
-                if (currentRecordingMode === "record") { resultingBuffer = decodedAudioBuffer; }
+                if (currentRecordingMode === "record") { 
+                    resultingBuffer = decodedAudioBuffer;
+                    loadedAudioFileName = "Grabación en vivo";
+                }
                 else if (currentRecordingMode === "append") {
                     const oldDuration = mainRecorderAudioBuffer ? mainRecorderAudioBuffer.duration : 0;
                     const absoluteLoopSelections = loopSelections.map(sel => ({ start: sel.start * oldDuration, end: sel.end * oldDuration }));
                     resultingBuffer = mainRecorderAudioBuffer ? appendAudioBuffers(mainRecorderAudioBuffer, decodedAudioBuffer, audioContext) : decodedAudioBuffer;
                     const newDuration = resultingBuffer.duration;
                     if (newDuration > 0) { loopSelections = absoluteLoopSelections.map(absSel => ({ start: absSel.start / newDuration, end: absSel.end / newDuration })); }
-                } else if (currentRecordingMode === "overdub") { resultingBuffer = mainRecorderAudioBuffer ? mixAudioBuffers(mainRecorderAudioBuffer, decodedAudioBuffer, audioContext) : decodedAudioBuffer; }
+                    loadedAudioFileName = "Grabación (Append)";
+                } else if (currentRecordingMode === "overdub") { 
+                    resultingBuffer = mainRecorderAudioBuffer ? mixAudioBuffers(mainRecorderAudioBuffer, decodedAudioBuffer, audioContext) : decodedAudioBuffer; 
+                    loadedAudioFileName = "Grabación (Overdub)";
+                }
                 updateLoopAndGranulatorWithNewBuffer(resultingBuffer);
                 if (recordedWaveformCanvas) drawMainRecordedWaveform();
                 if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer;
@@ -3635,6 +4204,7 @@ document.addEventListener('DOMContentLoaded', function() {
         else { updateLoopAndGranulatorWithNewBuffer(null); mainRecordedChunks = []; if (recordedWaveformCanvas) drawMainRecordedWaveform(true); currentRecordingMode = "clear_direct"; }
         loopSelections.forEach((s, i) => { loopSelections[i] = { start: 0, end: 1 }; sampleSelections[i] = { start: 0, end: 0 }; if (loopCanvases[i]) drawLoopWaveformVisuals(i, true); });
         isLoopRealtimePlaying.forEach((isPlaying, i) => { if (isPlaying) stopLoopRealtimePlayback(i); });
+        loadedAudioFileName = null; // Limpiar nombre de archivo
         enableRecordingButtons();
         if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true;
         if (currentRecordingMode === "clear_direct") currentRecordingMode = "";
@@ -3717,6 +4287,24 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (pointClickedIndex !== -1) {
+                 if (isMidiMapping) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (elementToMap) {
+                        if (elementToMap.classList) elementToMap.classList.remove('control-listening');
+                        if (elementToMap.element && elementToMap.element.classList) elementToMap.element.classList.remove('control-listening');
+                    }
+                    elementToMap = { 
+                        id: `granulator_point_${pointClickedIndex}`,
+                        element: recordedWaveformCanvas, // Referencia al canvas para quitar la clase
+                        type: 'virtual'
+                    };
+                    recordedWaveformCanvas.classList.add('control-listening');
+                    console.log(`Escuchando MIDI para el punto del granulador ${pointClickedIndex}`);
+                    return; 
+                }
+
+
                 if (e.button === 2) {
                     samplerGrainPoints[pointClickedIndex].active = !samplerGrainPoints[pointClickedIndex].active;
                     if(samplerGrainPoints[pointClickedIndex].isMain) samplerGrainPoints[pointClickedIndex].active = true;
@@ -3904,117 +4492,111 @@ document.addEventListener('DOMContentLoaded', function() {
         if (granulatorLFOGain) granulatorLFOGain.gain.setTargetAtTime(parseFloat(e.target.value), audioContext.currentTime, 0.01);
     });
     
-    function setupSidechainEventListeners() {
-        if (sidechainEnvelopePowerSwitch) {
-            sidechainEnvelopePowerSwitch.addEventListener('change', () => {
-                isSidechainEnvelopeProcessingActive = sidechainEnvelopePowerSwitch.checked;
-                
-                if (isSidechainEnvelopeProcessingActive) {
-                    if (audioContext.state === 'suspended') audioContext.resume();
-                    startSidechainEnvelopeProcessing();
-                } else {
-                    stopSidechainEnvelopeProcessing();
+   function setupSidechainEventListeners() {
+    if (sidechainEnvelopePowerSwitch) {
+        sidechainEnvelopePowerSwitch.addEventListener('change', () => {
+            isSidechainEnvelopeProcessingActive = sidechainEnvelopePowerSwitch.checked;
+            if (isSidechainEnvelopeProcessingActive) {
+                if (audioContext.state === 'suspended') audioContext.resume();
+                startSidechainEnvelopeProcessing();
+            } else {
+                stopSidechainEnvelopeProcessing();
+            }
+        });
+    }
+
+    if (sourceSidechainSendSwitches) {
+        sourceSidechainSendSwitches.forEach(switchEl => {
+            switchEl.addEventListener('change', e => {
+                const isChecked = e.target.checked;
+                if(sourceSidechainSendGain && audioContext) {
+                    const gainValue = isChecked ? 1.0 : 0.0;
+                    sourceSidechainSendGain.gain.setTargetAtTime(gainValue, audioContext.currentTime, 0.01);
                 }
-            });
-        }
-        
-        if (sourceSidechainSendSwitches) {
-            sourceSidechainSendSwitches.forEach(switchEl => {
-                switchEl.addEventListener('change', e => {
-                    const isChecked = e.target.checked;
-                    if(sourceSidechainSendGain && audioContext) {
-                        const gainValue = isChecked ? 1.0 : 0.0;
-                        sourceSidechainSendGain.gain.setTargetAtTime(gainValue, audioContext.currentTime, 0.01);
+                sourceSidechainSendSwitches.forEach(otherSwitch => {
+                    if (otherSwitch !== e.target) {
+                        otherSwitch.checked = isChecked;
                     }
-                    sourceSidechainSendSwitches.forEach(otherSwitch => {
-                        if (otherSwitch !== e.target) {
-                            otherSwitch.checked = isChecked;
-                        }
-                    });
                 });
             });
-        }
-        
-        loopSidechainSendSwitches.forEach((switchEl, idx) => {
-            if(switchEl) switchEl.addEventListener('change', (e) => {
-                const gainValue = e.target.checked ? 1.0 : 0.0;
-                if(loopSidechainSendGains[idx] && audioContext) {
-                    loopSidechainSendGains[idx].gain.setTargetAtTime(gainValue, audioContext.currentTime, 0.01);
-                }
-            });
-        });
-
-        sidechainThresholdDialEl = document.getElementById('sidechainThresholdDial');
-        sidechainAttackDialEl = document.getElementById('sidechainAttackDial');
-        sidechainReleaseDialEl = document.getElementById('sidechainReleaseDial');
-        sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
-
-        sidechainThresholdDialEl?.addEventListener('dialChange', e => { sidechainThresholdValue = parseFloat(e.detail.value); });
-        sidechainAttackDialEl?.addEventListener('dialChange', e => { sidechainAttackTime = parseFloat(e.detail.value); });
-        sidechainReleaseDialEl?.addEventListener('dialChange', e => { sidechainReleaseTime = parseFloat(e.detail.value); });
-        sidechainAmountDialEl?.addEventListener('dialChange', e => {
-            sidechainModulationAmount = parseFloat(e.detail.value);
         });
     }
 
-    function startSidechainEnvelopeProcessing() {
-        if (!isSidechainEnvelopeProcessingActive || sidechainAnimationRequest !== null) return;
-        if (sidechainSummingGain && sidechainAnalyserNode) {
-             try { sidechainSummingGain.disconnect(sidechainAnalyserNode); } catch(e){}
-             try { sidechainSummingGain.connect(sidechainAnalyserNode); } catch(e){ console.error("Error conectando sidechainSummingGain a sidechainAnalyserNode", e); }
-        }
-        processEnvelope();
+    loopSidechainSendSwitches.forEach((switchEl, idx) => {
+        if(switchEl) switchEl.addEventListener('change', (e) => {
+            const gainValue = e.target.checked ? 1.0 : 0.0;
+            if(loopSidechainSendGains[idx] && audioContext) {
+                loopSidechainSendGains[idx].gain.setTargetAtTime(gainValue, audioContext.currentTime, 0.01);
+            }
+        });
+    });
+
+    sidechainThresholdDialEl?.addEventListener('dialChange', e => { sidechainThresholdValue = parseFloat(e.detail.value); });
+    sidechainAttackDialEl?.addEventListener('dialChange', e => { sidechainAttackTime = parseFloat(e.detail.value); });
+    sidechainReleaseDialEl?.addEventListener('dialChange', e => { sidechainReleaseTime = parseFloat(e.detail.value); });
+    sidechainAmountDialEl?.addEventListener('dialChange', e => {
+        sidechainModulationAmount = parseFloat(e.detail.value);
+    });
+}
+
+function startSidechainEnvelopeProcessing() {
+    if (!isSidechainEnvelopeProcessingActive || sidechainAnimationRequest !== null) return;
+    if (sidechainSummingGain && sidechainAnalyserNode) {
+         try { sidechainSummingGain.disconnect(sidechainAnalyserNode); } catch(e){}
+         try { sidechainSummingGain.connect(sidechainAnalyserNode); } catch(e){ console.error("Error conectando sidechainSummingGain a sidechainAnalyserNode", e); }
     }
-    
-    function processEnvelope() {
-        if (!isSidechainEnvelopeProcessingActive || !audioContext || audioContext.state === 'closed') {
-            stopSidechainEnvelopeProcessing();
-            return;
-        }
-        sidechainAnalyserNode.getByteTimeDomainData(sidechainEnvelopeDataArray);
-        let sumOfSquares = 0;
-        for (let i = 0; i < sidechainEnvelopeDataArray.length; i++) {
-            const normalizedSample = (sidechainEnvelopeDataArray[i] / 128.0) - 1.0;
-            sumOfSquares += normalizedSample * normalizedSample;
-        }
-        const rms = Math.sqrt(sumOfSquares / sidechainEnvelopeDataArray.length);
-        const rmsDb = 20 * Math.log10(rms || 0.00001);
+    processEnvelope();
+}
 
-        let targetEnvelope = 0;
-        if (rmsDb > sidechainThresholdValue) {
-            const dynamicRangeDb = 24;
-            targetEnvelope = Math.min(1, Math.max(0, (rmsDb - sidechainThresholdValue) / dynamicRangeDb));
-        }
+function processEnvelope() {
+    if (!isSidechainEnvelopeProcessingActive || !audioContext || audioContext.state === 'closed') {
+        stopSidechainEnvelopeProcessing();
+        return;
+    }
+    sidechainAnalyserNode.getByteTimeDomainData(sidechainEnvelopeDataArray);
+    let sumOfSquares = 0;
+    for (let i = 0; i < sidechainEnvelopeDataArray.length; i++) {
+        const normalizedSample = (sidechainEnvelopeDataArray[i] / 128.0) - 1.0;
+        sumOfSquares += normalizedSample * normalizedSample;
+    }
+    const rms = Math.sqrt(sumOfSquares / sidechainEnvelopeDataArray.length);
+    const rmsDb = 20 * Math.log10(rms || 0.00001);
 
-        const updateIntervalSeconds = 1/60;
-        if (targetEnvelope > sidechainSmoothedEnvelope) {
-            const attackConstant = 1 - Math.exp(-updateIntervalSeconds / Math.max(0.001, sidechainAttackTime));
-            sidechainSmoothedEnvelope += (targetEnvelope - sidechainSmoothedEnvelope) * attackConstant;
-        } else {
-            const releaseConstant = 1 - Math.exp(-updateIntervalSeconds / Math.max(0.001, sidechainReleaseTime));
-            sidechainSmoothedEnvelope += (targetEnvelope - sidechainSmoothedEnvelope) * releaseConstant;
-        }
-        sidechainSmoothedEnvelope = Math.max(0, Math.min(1, sidechainSmoothedEnvelope));
-
-        const finalModulationValue = sidechainSmoothedEnvelope * -sidechainModulationAmount;
-        if (sidechainModulationGain) {
-            sidechainModulationGain.gain.setTargetAtTime(finalModulationValue, audioContext.currentTime, 0.01);
-        }
-
-        sidechainAnimationRequest = requestAnimationFrame(processEnvelope);
+    let targetEnvelope = 0;
+    if (rmsDb > sidechainThresholdValue) {
+        const dynamicRangeDb = 24;
+        targetEnvelope = Math.min(1, Math.max(0, (rmsDb - sidechainThresholdValue) / dynamicRangeDb));
     }
 
-    function stopSidechainEnvelopeProcessing() {
-        if (sidechainAnimationRequest) {
-            cancelAnimationFrame(sidechainAnimationRequest);
-            sidechainAnimationRequest = null;
-        }
-        if (sidechainModulationGain) {
-            sidechainModulationGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.01);
-        }
-        sidechainSmoothedEnvelope = 0;
+    const updateIntervalSeconds = 1/60;
+    if (targetEnvelope > sidechainSmoothedEnvelope) {
+        const attackConstant = 1 - Math.exp(-updateIntervalSeconds / Math.max(0.001, sidechainAttackTime));
+        sidechainSmoothedEnvelope += (targetEnvelope - sidechainSmoothedEnvelope) * attackConstant;
+    } else {
+        const releaseConstant = 1 - Math.exp(-updateIntervalSeconds / Math.max(0.001, sidechainReleaseTime));
+        sidechainSmoothedEnvelope += (targetEnvelope - sidechainSmoothedEnvelope) * releaseConstant;
     }
-    
+    sidechainSmoothedEnvelope = Math.max(0, Math.min(1, sidechainSmoothedEnvelope));
+
+    const finalModulationValue = sidechainSmoothedEnvelope * -sidechainModulationAmount;
+    if (sidechainModulationGain) {
+        sidechainModulationGain.gain.setTargetAtTime(finalModulationValue, audioContext.currentTime, 0.01);
+    }
+
+    sidechainAnimationRequest = requestAnimationFrame(processEnvelope);
+}
+
+function stopSidechainEnvelopeProcessing() {
+    if (sidechainAnimationRequest) {
+        cancelAnimationFrame(sidechainAnimationRequest);
+        sidechainAnimationRequest = null;
+    }
+    if (sidechainModulationGain) {
+        sidechainModulationGain.gain.setTargetAtTime(0, audioContext.currentTime, 0.01);
+    }
+    sidechainSmoothedEnvelope = 0;
+}
+
     let isLoopRealtimePlaying = [false, false, false];
     let realtimeLoopSourceNodes = [null, null, null];
     let loopFades = [
@@ -4080,7 +4662,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        if (loopSelection.end > loopSelection.start) {
+        if (loopSelection && loopSelection.end > loopSelection.start) {
             const visiblePortion = 1 / loopZoomLevels[loopIndex];
             const viewStart = loopPanOffsets[loopIndex];
             const viewEnd = viewStart + visiblePortion;
@@ -4136,7 +4718,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        if (sampleSelection.end > sampleSelection.start) {
+        if (sampleSelection && sampleSelection.end > sampleSelection.start) {
             ctx.fillStyle = styles.getPropertyValue('--sample-selection-bg').trim() || 'rgba(0, 150, 255, 0.3)';
             let selectionStartX = (sampleSelection.start - loopPanOffsets[loopIndex]) / (1 / loopZoomLevels[loopIndex]) * width;
             let selectionEndX = (sampleSelection.end - loopPanOffsets[loopIndex]) / (1 / loopZoomLevels[loopIndex]) * width;
@@ -4251,14 +4833,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const finalizeLoopAction = (e) => {
-             if (e.button === 2) { // Right mouse button up
+             if (e.button === 2) { 
                 if (loopFades[loopIndex].dragging) {
                     if (isLoopRealtimePlaying[loopIndex]) { stopLoopRealtimePlayback(loopIndex); startLoopRealtimePlayback(loopIndex); }
                     loopFades[loopIndex].dragging = null;
                 }
              }
 
-            if (e.button === 0) { // Left mouse button up
+            if (e.button === 0) { 
                 if (loopIsDraggingForPan[loopIndex]) {
                     loopIsDraggingForPan[loopIndex] = false;
                     canvas.style.cursor = loopZoomLevels[loopIndex] > 1 ? 'grab' : 'crosshair';
@@ -4277,7 +4859,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         loopSelections[loopIndex].end = loopSelections[loopIndex].start + 0.001;
                     }
                     
-                    // --- OPTIMIZACIÓN: Crear buffer dedicado al finalizar la selección ---
                     const selection = loopSelections[loopIndex];
                     if (mainRecorderAudioBuffer) {
                         loopDedicatedBuffers[loopIndex] = extractAudioBufferSegment(
@@ -4286,12 +4867,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             selection.end,
                             audioContext
                         );
-                        // Limpiar cachés viejos para este loop
                         flexPitchCache[loopIndex] = {};
                         loopReversedBuffersCache[loopIndex] = null;
                         console.log(`Buffer dedicado creado para el loop ${loopIndex + 1}.`);
                     }
-                    // --- Fin de la optimización ---
 
                     if (isLoopRealtimePlaying[loopIndex]) {
                         stopLoopRealtimePlayback(loopIndex);
@@ -4377,7 +4956,6 @@ document.addEventListener('DOMContentLoaded', function() {
         mainRecorderAudioBuffer = audioBuf;
         mainRecorderAudioBufferId++;
         
-        // --- OPTIMIZACIÓN: Limpiar buffers dedicados y cachés al cargar nuevo audio ---
         loopDedicatedBuffers = [null, null, null];
         loopReversedBuffersCache = [null, null, null];
         flexPitchCache = [{}, {}, {}];
@@ -4461,7 +5039,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 finalPlaybackRate = 1.0; 
                 segmentDuration = bufferToPlay.duration;
             } else {
-                finalPlaybackRate = currentSpeed; // Reproducir sin procesar mientras el worker trabaja
+                finalPlaybackRate = currentSpeed; 
                 
                 const transferableChannels = [];
                 for(let i=0; i < originalSegmentForPlayback.numberOfChannels; i++) {
@@ -4557,7 +5135,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if(!control) return;
         control.addEventListener('input', function() {
             if (isLoopRealtimePlaying[i]) {
-                stopLoopRealtimePlayback(i, true); // Parada silenciosa para no cambiar el texto del botón
+                stopLoopRealtimePlayback(i, true); 
                 startLoopRealtimePlayback(i);
             }
         });
@@ -4569,12 +5147,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const isPressed = this.getAttribute('aria-pressed') === 'true';
             this.setAttribute('aria-pressed', String(!isPressed));
 
-            // --- OPTIMIZACIÓN: Pre-calcular y cachear el buffer invertido ---
             if (!isPressed && loopDedicatedBuffers[i] && !loopReversedBuffersCache[i]) {
                 console.log(`Generando y cacheando buffer invertido para el loop ${i+1}...`);
                 loopReversedBuffersCache[i] = createReversedAudioBuffer(loopDedicatedBuffers[i]);
             }
-            // --- Fin de la optimización ---
 
             if (flexPitchCache[i]) flexPitchCache[i] = {};
             if (isLoopRealtimePlaying[i]) {
@@ -4622,8 +5198,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function processAudioWithSoundTouch(audioBufferInput, rateFactor) {
-        // Esta función ahora solo existirá dentro del worker.
-        // Se deja aquí como placeholder para evitar errores, pero no será llamada.
         console.warn("processAudioWithSoundTouch fue llamada desde el hilo principal, debería usar el worker.");
         return audioBufferInput;
     }
@@ -4639,7 +5213,6 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let channel = 0; channel < numChannels; channel++) {
                 const originalChannelData = inputAudioBuffer.getChannelData(channel);
                 const reversedChannelData = reversedBuffer.getChannelData(channel);
-                // Usar el método reverse() que es más rápido y nativo
                 reversedChannelData.set(originalChannelData);
                 reversedChannelData.reverse();
             }
@@ -4654,7 +5227,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!eqBandInstances || eqBandInstances.length === 0) {
             return {};
         }
+        
+        const routingStates = {};
+        document.querySelectorAll('#routingPatchBayGrid input[type="checkbox"]').forEach(cb => {
+            const key = `${cb.dataset.source}_to_${cb.dataset.dest}`;
+            routingStates[key] = cb.checked;
+        });
+
+        const cleanSavedStates = savedStates.map(state => {
+            if (!state) return null;
+            const cleanState = { ...state };
+            delete cleanState.savedStates;
+            return cleanState;
+        });
+
         return {
+            version: 1.4,
+            loadedAudioFileName: loadedAudioFileName,
             selectedSource: window.currentAudioSourceType,
             selectedMicId: micSelect ? micSelect.value : (micSelect?.options.length > 0 ? micSelect.options[0].value : ""),
             micVolumeLevel: micVolumeFader?.value ?? "1",
@@ -4663,21 +5252,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             mainPlayerVolume: volumeFader?.value ?? "1",
             mainPlayerTimelineValue: timeline?.value ?? "0",
-            isMainPlayerLooping: isMainPlayerLoopEnabled,
-            isMainPlayerPlaying: isMainPlayerPlaying,
-            mainPlayerFileOffset: mainPlayerStartOffset,
             
             samplerGrainPoints: JSON.parse(JSON.stringify(samplerGrainPoints)),
-            granulatorOverlap: overlapDialEl?.getAttribute('data-value') ?? "0.5",
-            granulatorCurrentGrainLength: grainLengthDialEl?.getAttribute('data-value') ?? "0.1",
+            granulatorOverlap: overlapDialEl?.getAttribute('data-value') ?? "0.8",
+            granulatorCurrentGrainLength: grainLengthDialEl?.getAttribute('data-value') ?? "0.6",
             granulatorFilterCutoff: granulatorFilterFreqEl?.getAttribute('data-value') ?? "10000",
             granulatorPitchBend: pitchBendDialEl?.getAttribute('data-value') ?? "0",
-            currentGranulatorFilterType: granulatorFilter?.type ?? "lowpass",
-            granulatorOutputVolume: granulatorVolumeFader?.value ?? "1",
+            currentGranulatorFilterType: granulatorFilter?.type ?? "highpass",
+            granulatorOutputVolume: granulatorVolumeFader?.value ?? "0.2",
             isGranulatorCurrentlyRunning: isGranulatorRunning,
 
             isSpectralSynthOn: spectralSynthPowerSwitch?.checked ?? false,
-            spectralSynthVolume: spectralSynthVolumeFader?.value ?? "1",
+            spectralSynthVolume: spectralSynthVolumeFader?.value ?? "0.9",
             isDrawModeActive: isDrawModeActive,
             drawnPaths: JSON.parse(JSON.stringify(drawnPaths)),
 
@@ -4693,8 +5279,8 @@ document.addEventListener('DOMContentLoaded', function() {
             sidechainAmount: sidechainAmountDialEl?.getAttribute('data-value') ?? "1000",
             
             loopSidechainSendStates: loopSidechainSendSwitches.map(s => s?.checked ?? false),
-            loopRegionSelections: loopSelections.map(sel => ({...sel})),
-            sampleRegionSelections: sampleSelections.map(sel => ({...sel})),
+            loopRegionSelections: JSON.parse(JSON.stringify(loopSelections)),
+            sampleRegionSelections: JSON.parse(JSON.stringify(sampleSelections)),
             loopSpeedSettings: loopSpeedControls.map(c => c?.value ?? "1"),
             loopFlexPitchStates: loopFlexPitchBtns.map(b => b.getAttribute('aria-pressed') === 'true'),
             loopReverseStates: loopReverseBtns.map(b => b.getAttribute('aria-pressed') === 'true'),
@@ -4703,48 +5289,151 @@ document.addEventListener('DOMContentLoaded', function() {
             loopZoomLevels: loopZoomLevels.map(z => z),
             loopPanOffsets: loopPanOffsets.map(p => p),
             
-            masterPreReverbVolume: masterVolumeFaderEl?.value ?? "1",
-            masterTimelineValue: masterTimelineFader?.value ?? "0",
-            isMasterRecordingPlaying: isMasterRecordingPlaying,
-            masterRecordingOffset: masterRecordingStartOffset,
+            masterVolume: masterVolumeFaderEl?.value ?? "1",
             
-            reverbSize: reverbSizeDialEl?.getAttribute('data-value') ?? "3",
-            reverbDryWet: reverbDryWetDialEl?.getAttribute('data-value') ?? "0.5",
-            eqBandSettings: eqBandInstances.map((b) => ({
-                x: b.x, 
-                y: b.y,
-                q: b.q
-            })),
+            reverbSize: reverbSizeDialEl?.getAttribute('data-value') ?? "5.0",
+            reverbDryWet: reverbDryWetDialEl?.getAttribute('data-value') ?? "0.85",
+            eqBandSettings: eqBandInstances.map((b) => ({ x: b.x, y: b.y, q: b.q })),
+            
             patchBayMappings: JSON.parse(JSON.stringify(patchMappings)),
-            midiMappings: JSON.parse(JSON.stringify(midiMap)),
-            automationMemories: JSON.parse(JSON.stringify(automationMemories))
+            routingPatchBayStates: routingStates,
+            
+            midiMap: JSON.parse(JSON.stringify(midiMap)),
+            automationMemories: JSON.parse(JSON.stringify(automationMemories)),
+            savedStates: cleanSavedStates
         };
     }
-    
-    function applySavedAppState(savedState){
-        if(!savedState) return;
 
-        if (savedState.eqBandSettings && eqBandInstances) {
-            savedState.eqBandSettings.forEach((setting, i) => {
+    function updateAllVisualsFromState() {
+        drawMainRecordedWaveform();
+        for (let i = 0; i < 3; i++) {
+            drawLoopWaveformVisuals(i);
+        }
+        updateAutomationBtnUI();
+        updateStateBtnUI();
+    }
+    
+    function applySavedAppState(state){
+        console.log("Aplicando estado guardado...");
+        
+        const deepCopy = (data) => data ? JSON.parse(JSON.stringify(data)) : data;
+
+        loadedAudioFileName = state.loadedAudioFileName || null;
+
+        window.currentAudioSourceType = state.selectedSource || 'file';
+        toggleSourcePanels();
+        if (state.selectedSource === 'mic') {
+            if (micSelect) micSelect.value = state.selectedMicId;
+            if (channelSelect) channelSelect.value = state.selectedMicChannel;
+            handleSourceChange();
+        }
+        if (micMuteBtn) micMuteBtn.setAttribute('aria-pressed', String(state.isMicCurrentlyMuted));
+        isMicMuted = state.isMicCurrentlyMuted;
+        if(micVolumeFader) localUpdateRangeParamProgrammatic(micVolumeFader, parseFloat(state.micVolumeLevel));
+
+        if(volumeFader) localUpdateRangeParamProgrammatic(volumeFader, parseFloat(state.mainPlayerVolume));
+        if(timeline) {
+            mainPlayerStartOffset = parseFloat(state.mainPlayerTimelineValue);
+            localUpdateRangeParamProgrammatic(timeline, mainPlayerStartOffset);
+        }
+
+        if (state.samplerGrainPoints) samplerGrainPoints = deepCopy(state.samplerGrainPoints);
+        if(overlapDialEl) localUpdateDialParamProgrammatic(overlapDialEl, parseFloat(state.granulatorOverlap));
+        if(grainLengthDialEl) localUpdateDialParamProgrammatic(grainLengthDialEl, parseFloat(state.granulatorCurrentGrainLength));
+        if(pitchBendDialEl) localUpdateDialParamProgrammatic(pitchBendDialEl, parseFloat(state.granulatorPitchBend));
+        if(granulatorFilterFreqEl) localUpdateDialParamProgrammatic(granulatorFilterFreqEl, parseFloat(state.granulatorFilterCutoff));
+        if(granulatorFilter) granulatorFilter.type = state.currentGranulatorFilterType;
+        if(toggleGranulatorFilterBtn) toggleGranulatorFilterBtn.textContent = `Filtro: ${state.currentGranulatorFilterType === 'lowpass' ? 'Lowpass' : 'Highpass'}`;
+        if(granulatorVolumeFader) localUpdateRangeParamProgrammatic(granulatorVolumeFader, parseFloat(state.granulatorOutputVolume));
+        if (state.isGranulatorCurrentlyRunning && !isGranulatorRunning) toggleGranulator();
+        else if (!state.isGranulatorCurrentlyRunning && isGranulatorRunning) toggleGranulator();
+        
+        if(granulatorLfoSpeedFader) localUpdateRangeParamProgrammatic(granulatorLfoSpeedFader, parseFloat(state.granulatorLfoRate));
+        if(granulatorLfoDepthFader) localUpdateRangeParamProgrammatic(granulatorLfoDepthFader, parseFloat(state.granulatorLfoFilterDepth));
+        if(lfoPowerSwitch && lfoPowerSwitch.checked !== state.isGranulatorLfoOn) lfoPowerSwitch.click();
+
+        if(sourceSidechainSendSwitches.length > 0 && sourceSidechainSendSwitches[0].checked !== state.isSidechainFromSourceOn) sourceSidechainSendSwitches[0].click();
+        if(sidechainEnvelopePowerSwitch && sidechainEnvelopePowerSwitch.checked !== state.isSidechainEnvelopeActive) sidechainEnvelopePowerSwitch.click();
+        if(sidechainThresholdDialEl) localUpdateDialParamProgrammatic(sidechainThresholdDialEl, parseFloat(state.sidechainThreshold));
+        if(sidechainAttackDialEl) localUpdateDialParamProgrammatic(sidechainAttackDialEl, parseFloat(state.sidechainAttack));
+        if(sidechainReleaseDialEl) localUpdateDialParamProgrammatic(sidechainReleaseDialEl, parseFloat(state.sidechainRelease));
+        if(sidechainAmountDialEl) localUpdateDialParamProgrammatic(sidechainAmountDialEl, parseFloat(state.sidechainAmount));
+        state.loopSidechainSendStates?.forEach((isChecked, i) => { if(loopSidechainSendSwitches[i] && loopSidechainSendSwitches[i].checked !== isChecked) loopSidechainSendSwitches[i].click(); });
+        
+        if (state.loopRegionSelections) loopSelections = deepCopy(state.loopRegionSelections);
+        if (state.sampleRegionSelections) sampleSelections = deepCopy(state.sampleRegionSelections);
+        if (state.loopZoomLevels) loopZoomLevels = deepCopy(state.loopZoomLevels);
+        if (state.loopPanOffsets) loopPanOffsets = deepCopy(state.loopPanOffsets);
+        state.loopSpeedSettings?.forEach((val, i) => { if(loopSpeedControls[i]) localUpdateRangeParamProgrammatic(loopSpeedControls[i], parseFloat(val)); });
+        state.loopVolumeLevels?.forEach((val, i) => { if(loopVolumeFaders[i]) localUpdateRangeParamProgrammatic(loopVolumeFaders[i], parseFloat(val)); });
+        state.loopFlexPitchStates?.forEach((isPressed, i) => { if(loopFlexPitchBtns[i] && (loopFlexPitchBtns[i].getAttribute('aria-pressed') === 'true') !== isPressed) loopFlexPitchBtns[i].click(); });
+        state.loopReverseStates?.forEach((isPressed, i) => { if(loopReverseBtns[i] && (loopReverseBtns[i].getAttribute('aria-pressed') === 'true') !== isPressed) loopReverseBtns[i].click(); });
+
+        if(masterVolumeFaderEl) localUpdateRangeParamProgrammatic(masterVolumeFaderEl, parseFloat(state.masterVolume));
+        if(reverbSizeDialEl) localUpdateDialParamProgrammatic(reverbSizeDialEl, parseFloat(state.reverbSize));
+        if(reverbDryWetDialEl) localUpdateDialParamProgrammatic(reverbDryWetDialEl, parseFloat(state.reverbDryWet));
+        
+        if (state.eqBandSettings) {
+            const centerX = spectrumCanvas.width / 2;
+            const centerY = spectrumCanvas.height / 2;
+            const neutralRadius = Math.min(spectrumCanvas.width, spectrumCanvas.height) / 3.5;
+            state.eqBandSettings.forEach((bandState, i) => {
                 if (eqBandInstances[i]) {
-                    const band = eqBandInstances[i];
-                    band.x = setting.x;
-                    band.y = setting.y;
-                    band.q = setting.q;
-                    
-                    const centerX = spectrumCanvas.width / 2;
-                    const centerY = spectrumCanvas.height / 2;
-                    const neutralRadius = Math.min(spectrumCanvas.width, spectrumCanvas.height) / 3.5;
-                    band.updateFilter(centerX, centerY, neutralRadius);
+                    eqBandInstances[i].x = bandState.x;
+                    eqBandInstances[i].y = bandState.y;
+                    eqBandInstances[i].q = bandState.q;
+                    eqBandInstances[i].updateFilter(centerX, centerY, neutralRadius);
                 }
             });
         }
+        
+        if (state.drawnPaths) drawnPaths = deepCopy(state.drawnPaths);
+        if(spectralSynthVolumeFader) localUpdateRangeParamProgrammatic(spectralSynthVolumeFader, parseFloat(state.spectralSynthVolume));
+        if(spectralSynthDrawModeSwitch) spectralSynthDrawModeSwitch.checked = state.isDrawModeActive;
+        isDrawModeActive = state.isDrawModeActive;
 
-        if(savedState.drawnPaths) { drawnPaths = JSON.parse(JSON.stringify(savedState.drawnPaths)); }
-        if(savedState.automationMemories) { 
-            automationMemories = JSON.parse(JSON.stringify(savedState.automationMemories));
-            updateAutomationBtnUI();
+        if(spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked !== state.isSpectralSynthOn) {
+          spectralSynthPowerSwitch.click();
         }
+        
+        if (state.isSpectralSynthOn) {
+            if (state.drawnPaths && state.drawnPaths.flat().length > 0) {
+                setTimeout(() => startPathPlayback(), 100);
+            }
+        }
+        
+        if (state.patchBayMappings) patchMappings = deepCopy(state.patchBayMappings);
+        document.querySelectorAll('#patchBayGrid input[type="checkbox"]').forEach(cb => {
+            const paramId = cb.dataset.paramId;
+            const axis = cb.closest('tr').dataset.mouseAxis;
+            cb.checked = patchMappings[paramId]?.[axis] || false;
+        });
+        isPatchBayActive = document.querySelectorAll('#patchBayGrid input[type="checkbox"]:checked').length > 0;
+
+        if (state.routingPatchBayStates) {
+            document.querySelectorAll('#routingPatchBayGrid input[type="checkbox"]').forEach(cb => {
+                const key = `${cb.dataset.source}_to_${cb.dataset.dest}`;
+                if (cb.checked !== state.routingPatchBayStates[key]) cb.click();
+            });
+        }
+        
+        if (state.midiMap) midiMap = deepCopy(state.midiMap);
+        if (state.automationMemories) automationMemories = deepCopy(state.automationMemories);
+        if (state.savedStates) savedStates = deepCopy(state.savedStates);
+
+        updateAllVisualsFromState();
+
+        console.log("Estado de la aplicación restaurado.");
+    }
+    
+    function updateStateBtnUI() {
+        stateButtons.forEach((btn, i) => {
+            if (!btn) return;
+            btn.classList.remove('state-has-data');
+            if (savedStates[i]) {
+                btn.classList.add('state-has-data');
+            }
+        });
     }
 
     if(stateButtons) stateButtons.forEach((btn,i)=>{
@@ -4754,12 +5443,17 @@ document.addEventListener('DOMContentLoaded', function() {
             if(e.button===0 && statePressTimes[i]!==0){
                 const pressDuration = Date.now() - statePressTimes[i];
                 if(pressDuration >= 700){
-                    savedStates[i] = getCurrentAppState();
+                    const currentState = getCurrentAppState();
+                    delete currentState.savedStates;
+                    savedStates[i] = currentState;
+
                     btn.style.backgroundColor="var(--highlight-color)";
-                    setTimeout(()=>{btn.style.backgroundColor="";},600);
+                    setTimeout(()=>{btn.style.backgroundColor=""; updateStateBtnUI();},600);
                 } else {
                     if(savedStates[i]){
-                        applySavedAppState(savedStates[i]);
+                        setTimeout(() => { 
+                          applySavedAppState(savedStates[i]);
+                        }, 0);
                         btn.style.backgroundColor="green";
                         setTimeout(()=>{btn.style.backgroundColor="";},600);
                     } else {
@@ -4776,12 +5470,16 @@ document.addEventListener('DOMContentLoaded', function() {
              if(statePressTimes[i]!==0){
                 const pressDuration = Date.now() - statePressTimes[i];
                 if(pressDuration >= 700){
-                    savedStates[i] = getCurrentAppState();
+                    const currentState = getCurrentAppState();
+                    delete currentState.savedStates;
+                    savedStates[i] = currentState;
                     btn.style.backgroundColor="var(--highlight-color)";
-                    setTimeout(()=>{btn.style.backgroundColor="";},600);
+                    setTimeout(()=>{btn.style.backgroundColor=""; updateStateBtnUI();},600);
                 } else {
                     if(savedStates[i]){
-                        applySavedAppState(savedStates[i]);
+                        setTimeout(() => { 
+                          applySavedAppState(savedStates[i]);
+                        }, 0);
                         btn.style.backgroundColor="green";
                         setTimeout(()=>{btn.style.backgroundColor="";},600);
                     } else {
@@ -5139,13 +5837,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function setupMidi() {
         const midiMapBtn = document.getElementById('midiMapBtn');
-        let midiInitialized = false;
+        let midiAccess = null;
 
         midiMapBtn.addEventListener('click', () => {
-            if (!midiInitialized && navigator.requestMIDIAccess) {
+            if (!midiAccess && navigator.requestMIDIAccess) {
                 navigator.requestMIDIAccess()
                     .then(onMIDISuccess, onMIDIFailure);
-                midiInitialized = true;
             }
 
             isMidiMapping = !isMidiMapping;
@@ -5157,7 +5854,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.log("MAPEADO MIDI DESACTIVADO.");
                 if (elementToMap) {
-                    elementToMap.classList.remove('control-listening');
+                    if(elementToMap.classList) elementToMap.classList.remove('control-listening');
+                    if(elementToMap.element && elementToMap.element.classList) elementToMap.element.classList.remove('control-listening');
                     elementToMap = null;
                 }
             }
@@ -5169,32 +5867,52 @@ document.addEventListener('DOMContentLoaded', function() {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    if (elementToMap && elementToMap.element) elementToMap.element.classList.remove('control-listening');
-                    if(elementToMap && elementToMap.classList) elementToMap.classList.remove('control-listening');
-
+                    if (elementToMap) {
+                        if(elementToMap.classList) elementToMap.classList.remove('control-listening');
+                        if(elementToMap.element && elementToMap.element.classList) elementToMap.element.classList.remove('control-listening');
+                    }
                     elementToMap = el;
                     elementToMap.classList.add('control-listening');
                     console.log(`Escuchando MIDI para el control: ${el.id || el.dataset.paramId}`);
                 }
             });
         });
+
+        function onMIDISuccess(ma) {
+            midiAccess = ma;
+            console.log("Acceso MIDI concedido.");
+            
+            function refreshMidiInputs() {
+                for (let input of midiAccess.inputs.values()) {
+                    input.onmidimessage = null;
+                }
+                for (let input of midiAccess.inputs.values()) {
+                    input.onmidimessage = onMidiMessage;
+                    console.log(`Escuchando en el dispositivo MIDI: ${input.name}`);
+                }
+            }
+            
+            refreshMidiInputs();
+            
+            midiAccess.onstatechange = (event) => {
+                console.log(`Cambio de estado MIDI: ${event.port.name}, ${event.port.state}`);
+                refreshMidiInputs();
+            };
+        }
+
+        function onMIDIFailure() {
+            console.error("No se pudo acceder a los dispositivos MIDI.");
+            alert("No se pudo acceder a los dispositivos MIDI. Por favor, revisa la configuración de este sitio en tu navegador (haz clic en el candado en la barra de direcciones) y asegúrate de que el permiso para 'Dispositivos MIDI' esté activado. Luego, recarga la página.");
+        }
         
+        if (navigator.mediaDevices && navigator.mediaDevices.ondevicechange !== undefined) {
+            navigator.mediaDevices.addEventListener('devicechange', initAudioDevicesList);
+        }
+
         if (!navigator.requestMIDIAccess) {
             console.warn("Web MIDI API no está soportada en este navegador.");
+            if(midiMapBtn) midiMapBtn.disabled = true;
         }
-    }
-
-    function onMIDISuccess(midiAccess) {
-        console.log("Acceso MIDI concedido.");
-        for (let input of midiAccess.inputs.values()) {
-            input.onmidimessage = onMidiMessage;
-            console.log(`Escuchando en el dispositivo MIDI: ${input.name}`);
-        }
-    }
-
-    function onMIDIFailure() {
-        console.error("No se pudo acceder a los dispositivos MIDI.");
-        alert("No se pudo acceder a los dispositivos MIDI. Por favor, revisa la configuración de este sitio en tu navegador (haz clic en el candado en la barra de direcciones) y asegúrate de que el permiso para 'Dispositivos MIDI' esté activado. Luego, recarga la página.");
     }
 
     function onMidiMessage(event) {
@@ -5205,21 +5923,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isMidiMapping && elementToMap) {
             let key;
             let type;
-            if (command === 0xB0) {
+            if (command === 0xB0) { // Control Change
                 key = `cc_${number}`;
                 type = 'CC';
-            } else if (command === 0x90) {
+            } else if (command === 0x90 && value > 0) { // Note On
                 key = `note_${number}`;
                 type = 'Note';
             } else {
-                return;
+                return; 
             }
 
             midiMap[key] = { id: elementToMap.id };
             console.log(`Control MIDI ${type} #${number} mapeado a ${elementToMap.id}`);
             
             if(elementToMap.classList) elementToMap.classList.remove('control-listening');
-            if(elementToMap.element) elementToMap.element.classList.remove('control-listening');
+            if(elementToMap.element && elementToMap.element.classList) elementToMap.element.classList.remove('control-listening');
             elementToMap = null;
             isMidiMapping = false;
             document.body.classList.remove('midi-mapping-active');
@@ -5234,6 +5952,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const mapping = midiMap[key];
         if (!mapping) return;
+
+        if (mapping.id.startsWith('granulator_point_')) {
+            if (command === 0xB0) { 
+                const normalizedValue = value / 127.0;
+                updateParameterProgrammatically(mapping.id, normalizedValue);
+            }
+            return;
+        }
+
 
         const targetElement = document.getElementById(mapping.id);
         if (!targetElement) return;
@@ -5288,9 +6015,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function setupGlobalKeyListeners(){
-        document.addEventListener('keydown',(e)=>{
-            const activeEl = document.activeElement;
-            if(e.repeat || (activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='SELECT'||activeEl.tagName==='TEXTAREA'||activeEl.isContentEditable))) return;
+    document.addEventListener('keydown',(e)=>{
+        const activeEl = document.activeElement;
+        const isTextInputActive = activeEl && (
+            (activeEl.tagName === 'INPUT' && (activeEl.type === 'text' || activeEl.type === 'number')) ||
+            activeEl.tagName === 'TEXTAREA' ||
+            activeEl.tagName === 'SELECT' ||
+            activeEl.isContentEditable
+        );
+
+            if(e.repeat || isTextInputActive) {
+                return;
+            }
             
             const key = e.key;
 
@@ -5345,7 +6081,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.addEventListener('keyup', (e) => {
             const activeEl = document.activeElement;
-            if (activeEl && (activeEl.tagName==='INPUT'||activeEl.tagName==='SELECT'||activeEl.tagName==='TEXTAREA'||activeEl.isContentEditable)) return;
+            const isTextInputActive = activeEl && (
+                (activeEl.tagName === 'INPUT' && (activeEl.type === 'text' || activeEl.type === 'number')) ||
+                activeEl.tagName === 'TEXTAREA' ||
+                activeEl.tagName === 'SELECT' ||
+                activeEl.isContentEditable
+            );
+
+            if(isTextInputActive) {
+                return;
+            }
 
             switch(e.key){
                 case '5': triggerSampleOff(0); break;
@@ -5407,6 +6152,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (e.target.checked) {
                     if (hasDrawing) {
                         startPathPlayback();
+                    } else if (spectrumCanvas.matches(':hover')) {
+                        startSpectralSynth();
                     }
                 } else {
                     stopSpectralSynth();
@@ -5590,7 +6337,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!button) return;
             button.addEventListener('click', () => {
                 const now = performance.now();
-                const DOUBLE_CLICK_THRESHOLD = 400; // ms
+                const DOUBLE_CLICK_THRESHOLD = 400; 
 
                 if (now - memBtnLastClickTime[index] < DOUBLE_CLICK_THRESHOLD) {
                     if (automationMemories[index]) {
@@ -5628,7 +6375,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (armedAutomationSlot === i) {
                 btn.classList.add('automation-armed');
                 btn.style.animation = 'blink-red 1s infinite';
-            } else if (automationMemories[i]) {
+            } else if (automationMemories[i] && automationMemories[i].length > 0) {
                 btn.classList.add('automation-has-data');
             }
         });
@@ -5736,6 +6483,49 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`Stopped automation playback for slot ${index + 1}`);
         updateAutomationBtnUI();
     }
+
+    const infoBtn = document.getElementById('infoBtn');
+    const infoModalOverlay = document.getElementById('info-modal-overlay');
+    const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
+
+    function hideInfoModal() {
+        if(infoModalOverlay) infoModalOverlay.classList.add('hidden');
+    }
+
+    function showInfoModal() {
+        if (!infoModalOverlay || !audioContext) return;
+        
+        document.getElementById('info-audio-file-name').textContent = loadedAudioFileName || 'No hay archivo de audio en la fuente.';
+        document.getElementById('info-sample-rate').textContent = `${audioContext.sampleRate} Hz`;
+        
+        const eqTableBody = document.getElementById('info-eq-table-body');
+        eqTableBody.innerHTML = ''; 
+
+        if (eqBandInstances && eqBandInstances.length > 0) {
+            eqBandInstances.forEach((band, index) => {
+                const filter = band.filterNode;
+                if(filter) {
+                    const row = eqTableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${filter.frequency.value.toFixed(2)}</td>
+                        <td>${filter.gain.value.toFixed(2)}</td>
+                        <td>${filter.Q.value.toFixed(2)}</td>
+                    `;
+                }
+            });
+        }
+        
+        infoModalOverlay.classList.remove('hidden');
+    }
+
+    if (infoBtn) infoBtn.addEventListener('click', showInfoModal);
+    if (infoModalCloseBtn) infoModalCloseBtn.addEventListener('click', hideInfoModal);
+    if (infoModalOverlay) infoModalOverlay.addEventListener('click', (e) => {
+        if (e.target === infoModalOverlay) {
+            hideInfoModal();
+        }
+    });
 
 })();
 </script>
