@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario SUSPIRA</title>
+    <style>
+        /* CSS para asegurar que el visor PDF ocupe toda la pantalla */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Evita barras de desplazamiento innecesarias en el cuerpo */
+            height: 100%;
+            width: 100%;
+            font-family: Arial, sans-serif;
+            background-color: #333; /* Fondo oscuro opcional */
+        }
+
+        /* Estilo para el iframe que incrusta el PDF */
+        #pdf-viewer {
+            width: 100%;
+            height: 100%;
+            border: none; /* Oculta el borde del iframe */
+        }
+    </style>
+</head>
+<body>
+
+    <iframe id="pdf-viewer" src="Manual.de.Usuario_sintx.pdf" title="Manual de Usuario de SUSPIRA">
+        <p>Tu navegador no soporta iframes o incrustar PDFs. Puedes <a href="manual_de_usuario.pdf" target="_blank">descargar el manual aquí</a>.</p>
+    </iframe>
+
+</body>
+</html>
