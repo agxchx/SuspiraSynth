@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SUSPIRA - Playground de Síntesis</title>
+  <title>SUSPIRA - Playground de Síntesis Corregido</title>
   <link rel="icon" type="image/png" href="1.png">
   <script src="soundtouch-compiled.js"></script>
   <style>
@@ -1854,6 +1854,8 @@ document.addEventListener('DOMContentLoaded', function() {
             window.dispatchEvent(new Event('resize'));
         }, 50);
     }
+
+    
     
     toggleEasyMode(); 
 
@@ -1892,6 +1894,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    toggleEasyMode();
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && document.body.classList.contains('easy-mode-active')) {
@@ -2128,6 +2132,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }, true);
     
 });
+function showStartButtonOnLoadingScreen(showAllButtons = true) {
+        const loadingText = document.getElementById('loading-text');
+        const loadingButtonsContainer = document.getElementById('loading-buttons-container');
+        const bottomButtons = document.getElementById('bottom-buttons-row');
+
+        if (loadingText) loadingText.style.display = 'none';
+        if (loadingButtonsContainer) {
+            loadingButtonsContainer.style.display = 'flex';
+            loadingButtonsContainer.style.opacity = '0';
+            setTimeout(() => {
+                loadingButtonsContainer.style.opacity = '1';
+            }, 100);
+        }
+        
+        // Lógica condicional para los botones inferiores
+        if (bottomButtons) {
+            bottomButtons.style.display = showAllButtons ? 'flex' : 'none';
+        }
+    }
+
 
 (function(){
     console.log("SUSPIRA Audio Logic Initializing...");
@@ -2507,111 +2531,113 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
     }
     
     async function loadSessionFromFile(file) {
-        console.log("Iniciando carga de sesión...");
-        showLoader("Cargando sesión...");
+        // 1. Envolvemos todo en una nueva Promesa
+        return new Promise((resolve, reject) => {
+            console.log("Iniciando carga de sesión...");
+            showLoader("Cargando sesión...");
 
-        loadedAudioFileName = file.name; // Guardar nombre de archivo de sesión
+            loadedAudioFileName = file.name;
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const fullFileBlob = new Blob([event.target.result]);
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const fullFileBlob = new Blob([event.target.result]);
 
-                // 1. Leer el Header para obtener el tamaño de la Tabla de Contenidos (TOC)
-                const headerBuffer = await fullFileBlob.slice(0, 8).arrayBuffer();
-                const tocSize = new BigUint64Array(headerBuffer)[0];
+                    // ... (Toda tu lógica de leer Header, TOC, y blobs) ...
+                    const headerBuffer = await fullFileBlob.slice(0, 8).arrayBuffer();
+                    const tocSize = new BigUint64Array(headerBuffer)[0];
+                    const tocBlob = fullFileBlob.slice(8, 8 + Number(tocSize));
+                    const toc = JSON.parse(await tocBlob.text());
 
-                // 2. Leer y parsear la TOC
-                const tocBlob = fullFileBlob.slice(8, 8 + Number(tocSize));
-                const toc = JSON.parse(await tocBlob.text());
+                    if (!toc.parts || !toc.parts.find(p => p.name === 'appState')) {
+                        throw new Error("El archivo no parece ser una sesión válida de SUSPIRA (TOC inválida).");
+                    }
+                    
+                    let offset = 8 + Number(tocSize);
+                    let appState = null;
+                    const audioBuffers = {};
+                    
+                    for (const part of toc.parts) {
+                        const partBlob = fullFileBlob.slice(offset, offset + part.size);
+                        offset += part.size;
 
-                if (!toc.parts || !toc.parts.find(p => p.name === 'appState')) {
-                    throw new Error("El archivo no parece ser una sesión válida de SUSPIRA (TOC inválida).");
-                }
-
-                let offset = 8 + Number(tocSize);
-                let appState = null;
-                const audioBuffers = {};
-
-                // 3. Usar la TOC para "rebanar" el archivo y procesar cada parte
-                for (const part of toc.parts) {
-                    const partBlob = fullFileBlob.slice(offset, offset + part.size);
-                    offset += part.size;
-
-                    if (part.name === 'appState') {
-                        appState = JSON.parse(await partBlob.text());
-                    } else if (part.type === 'audio/wav') {
-                        const arrayBuffer = await partBlob.arrayBuffer();
-                        if (arrayBuffer.byteLength > 44) { 
-                           audioBuffers[part.name] = await audioContext.decodeAudioData(arrayBuffer);
-                        } else {
-                           audioBuffers[part.name] = null;
+                        if (part.name === 'appState') {
+                            appState = JSON.parse(await partBlob.text());
+                        } else if (part.type === 'audio/wav') {
+                            const arrayBuffer = await partBlob.arrayBuffer();
+                            if (arrayBuffer.byteLength > 44) { 
+                               // Esta es la parte asíncrona clave dentro del callback
+                               audioBuffers[part.name] = await audioContext.decodeAudioData(arrayBuffer);
+                            } else {
+                               audioBuffers[part.name] = null;
+                            }
                         }
                     }
-                }
-
-                if (!appState) {
-                    throw new Error("No se encontró el estado de la aplicación en el archivo de sesión.");
-                }
-                
-                // 4. Asignar los buffers de audio reconstruidos
-                mainRecorderAudioBuffer = audioBuffers['mainRecorderAudioBuffer'] || null;
-                masterRecordedAudioBuffer = audioBuffers['masterRecordedAudioBuffer'] || null;
-                
-                // CORRECCIÓN 2: Asignar el audio cargado al reproductor de fuente y actualizar su UI.
-                if (mainRecorderAudioBuffer) {
-                    audioBuffer = mainRecorderAudioBuffer;
-                    mainPlayerDuration = audioBuffer.duration;
-                    if (timeline) { timeline.max = mainPlayerDuration; }
-                    if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
-                    if (playPauseBtn) playPauseBtn.disabled = false;
-                    if (!appState.loadedAudioFileName) { // Si el estado guardado no tenía el nombre, usar el del archivo de sesión
-                        loadedAudioFileName = file.name;
+                    
+                    if (!appState) {
+                        throw new Error("No se encontró el estado de la aplicación en el archivo de sesión.");
                     }
+
+                    const decodedMainBuffer = audioBuffers['mainRecorderAudioBuffer'] || null;
+
+                    
+                    updateLoopAndGranulatorWithNewBuffer(decodedMainBuffer); 
+                    
+                    masterRecordedAudioBuffer = audioBuffers['masterRecordedAudioBuffer'] || null;
+
+                 
+                    if (mainRecorderAudioBuffer) {
+                        audioBuffer = mainRecorderAudioBuffer; 
+                        mainPlayerDuration = audioBuffer.duration;
+                        if (timeline) { timeline.max = mainPlayerDuration; }
+                        if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
+                        if (playPauseBtn) playPauseBtn.disabled = false;
+                        if (!appState.loadedAudioFileName) {
+                            loadedAudioFileName = file.name;
+                        }
+                    }
+
+                    for(let i = 0; i < 3; i++) {
+                         const selection = appState.loopRegionSelections[i];
+                         if (mainRecorderAudioBuffer && selection && selection.end > selection.start) {
+                             loopDedicatedBuffers[i] = extractAudioBufferSegment(
+                                 mainRecorderAudioBuffer, selection.start, selection.end, audioContext
+                             );
+                         } else {
+                            loopDedicatedBuffers[i] = null;
+                         }
+                    }
+
+                    await applySavedAppState(appState);
+                    
+                    updateAllVisualsFromState();
+                    if (masterRecordedAudioBuffer) {
+                        masterDurationDisplay.textContent = formatTime(masterRecordedAudioBuffer.duration);
+                        masterTimelineFader.max = masterRecordedAudioBuffer.duration;
+                    }
+                    updateMasterRecordingTimelineDisplay(true);
+                    updateMainPlayerTimelineDisplay(true);
+
+                    console.log("Sesión cargada exitosamente.");
+                    resolve(true); // 2. Resolvemos la promesa principal al final
+
+                } catch (error) {
+                    console.error("Error al cargar la sesión:", error);
+                    alert("Error al cargar el archivo de sesión. Puede estar corrupto o no ser compatible.");
+                    reject(error); // 3. Rechazamos la promesa en error
+                } finally {
+                    hideLoader();
                 }
+            };
 
+            reader.onerror = () => {
+                 alert("No se pudo leer el archivo.");
+                 hideLoader();
+                 reject(new Error("No se pudo leer el archivo.")); // 4. Rechazamos en error de FileReader
+            };
 
-                // 5. Recrear los buffers de loop dedicados a partir del buffer principal y las selecciones guardadas
-                 for(let i = 0; i < 3; i++) {
-                     const selection = appState.loopRegionSelections[i];
-                     if (mainRecorderAudioBuffer && selection && selection.end > selection.start) {
-                         loopDedicatedBuffers[i] = extractAudioBufferSegment(
-                             mainRecorderAudioBuffer, selection.start, selection.end, audioContext
-                         );
-                     } else {
-                        loopDedicatedBuffers[i] = null;
-                     }
-                }
-
-                // 6. Aplicar todo el estado de la UI
-                applySavedAppState(appState);
-                
-                // 7. Actualizar visualizaciones y estados finales
-                updateAllVisualsFromState(); // <--- CORRECCIÓN 1 y 2
-                if (masterRecordedAudioBuffer) {
-                    masterDurationDisplay.textContent = formatTime(masterRecordedAudioBuffer.duration);
-                    masterTimelineFader.max = masterRecordedAudioBuffer.duration;
-                }
-                updateMasterRecordingTimelineDisplay(true);
-                updateMainPlayerTimelineDisplay(true);
-
-
-                console.log("Sesión cargada exitosamente.");
-
-            } catch (error) {
-                console.error("Error al cargar la sesión:", error);
-                alert("Error al cargar el archivo de sesión. Puede estar corrupto o no ser compatible.");
-            } finally {
-                hideLoader();
-            }
-        };
-
-        reader.onerror = () => {
-             alert("No se pudo leer el archivo.");
-             hideLoader();
-        };
-
-        reader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(file);
+        });
     }
     
     // Funciones auxiliares para mostrar/ocultar el loader
@@ -3755,8 +3781,52 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         }
         
         masterRenderLoop();
-        console.log("SUSPIRA inicialización de UI y Audio completada.");
-        loadInitialAudio('Output 1-2.wav');
+    console.log("SUSPIRA inicialización de UI y Audio completada.");
+
+    // --- INICIO: NUEVA LÓGICA PARA CARGAR DESDE URL ---
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionToLoad = urlParams.get('session'); 
+
+        if (sessionToLoad) {
+            // --- Caso 1: Cargar Sesión desde URL ---
+            console.log(`Intentando cargar sesión desde URL: ${sessionToLoad}`);
+            showLoader(`Cargando sesión: ${sessionToLoad}...`);
+            
+            const response = await fetch(sessionToLoad);
+            if (!response.ok) {
+                throw new Error(`No se pudo encontrar el archivo de sesión: ${response.statusText}`);
+            }
+            
+            const sessionBlob = await response.blob();
+            const sessionFile = new File([sessionBlob], sessionToLoad, {
+                type: "application/octet-stream" 
+            });
+
+            // AHORA SÍ esperamos a que la carga y decodificación terminen
+            await loadSessionFromFile(sessionFile); 
+
+            // Y solo después, configuramos la UI
+            toggleEasyMode();
+            showStartButtonOnLoadingScreen(false); // Mostrar solo el botón "Inicio"
+
+        } else { 
+            // Esperamos a que el audio por defecto se cargue y decodifique
+            await loadInitialAudio('Output 1-2.wav');
+            // Mostramos todos los botones de inicio
+            showStartButtonOnLoadingScreen(true);
+        }
+    } catch (error) {
+        // --- Caso 3: Error en Sesión o Audio por Defecto ---
+        console.error("Error en la carga inicial (sesión o defecto):", error);
+        // alert("No se pudo cargar la sesión o el audio por defecto. La interfaz se cargará vacía. Puedes cargar un archivo manualmente.");
+        
+        hideLoader();
+        drawInitialMessage("Error al cargar. Carga un archivo.");
+        
+        // Mostramos los botones para que el usuario pueda interactuar
+        showStartButtonOnLoadingScreen(true);
+    }
     });
     function createSpectralSynthFilterBank() {
         if (!audioContext) return;
@@ -3840,63 +3910,65 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         reader.onerror = function() { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer archivo."); drawInitialMessage("Error al leer archivo."); };
         reader.readAsArrayBuffer(file);
     }
-    function processArrayBuffer(arrayBuffer, isInitial = false) { 
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer el archivo."); return; }
-        if (isMainPlayerPlaying && currentSourceNode) { try { currentSourceNode.stop(); } catch (e) {} isMainPlayerPlaying = false; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; }
-        mainPlayerStartOffset = 0; audioBuffer = null; if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
-        if (loaderOverlay) loaderOverlay.classList.remove('hidden');
-        drawInitialMessage("Procesando audio...");
-        audioContext.decodeAudioData(arrayBuffer, function(decodedBuffer) {
-            audioBuffer = decodedBuffer; mainPlayerDuration = audioBuffer.duration;
-            if (timeline) { timeline.max = mainPlayerDuration; }
-            updateMainPlayerTimelineDisplay(true); // Force UI update
-            if (playPauseBtn) { playPauseBtn.disabled = false; playPauseBtn.textContent = PLAY_SYMBOL; }
-            if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
-            isMainPlayerPlaying = false; mainPlayerStartOffset = 0;
-            startReverbSystemWithBuffer(audioBuffer);
-            if (loaderOverlay) loaderOverlay.classList.add('hidden');
-
-            if (document.body.classList.contains('easy-mode-active') || isInitial) {
-                updateLoopAndGranulatorWithNewBuffer(decodedBuffer);
-                drawMainRecordedWaveform();
+    function processArrayBuffer(arrayBuffer, isInitial = false) {
+        // 1. Devolvemos una nueva Promesa
+        return new Promise((resolve, reject) => {
+            if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                if (loaderOverlay) loaderOverlay.classList.add('hidden');
+                alert("Error al leer el archivo.");
+                return reject(new Error("ArrayBuffer nulo o vacío.")); // 2. Rechazamos en error
             }
+
+            if (isMainPlayerPlaying && currentSourceNode) { try { currentSourceNode.stop(); } catch (e) {} isMainPlayerPlaying = false; if (playPauseBtn) playPauseBtn.textContent = PLAY_SYMBOL; }
+            mainPlayerStartOffset = 0; audioBuffer = null; if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
+            if (loaderOverlay) loaderOverlay.classList.remove('hidden');
+            drawInitialMessage("Procesando audio...");
             
-            if (isInitial) {
-                loadedAudioFileName = 'Output 1-2.wav'; // Nombre del archivo inicial
-                const spectralSynthPowerSwitchEl = document.getElementById('spectralSynthPowerSwitch');
-                if (spectralSynthPowerSwitchEl && !spectralSynthPowerSwitchEl.checked) {
-                    spectralSynthPowerSwitchEl.checked = true;
-                    spectralSynthPowerSwitchEl.dispatchEvent(new Event('change', { bubbles: true }));
-                    console.log("Sintetizador Espectral activado por defecto al cargar audio inicial.");
+            audioContext.decodeAudioData(arrayBuffer, function(decodedBuffer) {
+                audioBuffer = decodedBuffer; mainPlayerDuration = audioBuffer.duration;
+                if (timeline) { timeline.max = mainPlayerDuration; }
+                updateMainPlayerTimelineDisplay(true);
+                if (playPauseBtn) { playPauseBtn.disabled = false; playPauseBtn.textContent = PLAY_SYMBOL; }
+                if (exportToBuffersBtn) exportToBuffersBtn.disabled = false;
+                isMainPlayerPlaying = false; mainPlayerStartOffset = 0;
+                startReverbSystemWithBuffer(audioBuffer);
+                if (loaderOverlay) loaderOverlay.classList.add('hidden');
+
+                if (document.body.classList.contains('easy-mode-active') || isInitial) {
+                    updateLoopAndGranulatorWithNewBuffer(decodedBuffer);
+                    drawMainRecordedWaveform();
                 }
-                const loadingText = document.getElementById('loading-text');
-                const loadingButtonsContainer = document.getElementById('loading-buttons-container');
                 
-                if (loadingText) loadingText.style.display = 'none';
-                if (loadingButtonsContainer) {
-                    loadingButtonsContainer.style.display = 'flex';
-                    loadingButtonsContainer.style.opacity = '0';
-                    setTimeout(() => {
-                        loadingButtonsContainer.style.opacity = '1';
-                       
-                    }, 100);
+                if (isInitial) {
+                    loadedAudioFileName = 'Output 1-2.wav';
+                    const spectralSynthPowerSwitchEl = document.getElementById('spectralSynthPowerSwitch');
+                    if (spectralSynthPowerSwitchEl && !spectralSynthPowerSwitchEl.checked) {
+                        spectralSynthPowerSwitchEl.checked = true;
+                        spectralSynthPowerSwitchEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        console.log("Sintetizador Espectral activado por defecto al cargar audio inicial.");
+                    }
+                    // ¡¡¡ LÍNEA ELIMINADA DE AQUÍ: showStartButtonOnLoadingScreen(true); !!!
                 }
-            }
 
-            if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && isDrawModeActive && !isSpectralSynthActive) {
-                if (spectrumCanvas && spectrumCanvas.matches(':hover')) {
-                    startSpectralSynth();
+                if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && isDrawModeActive && !isSpectralSynthActive) {
+                    if (spectrumCanvas && spectrumCanvas.matches(':hover')) {
+                        startSpectralSynth();
+                    }
                 }
-            }
-            
-        }, function(error) {
-            console.error("Error decodificando audio:", error); alert("Error al decodificar. Formato no compatible?");
-            audioBuffer = null;
-            loadedAudioFileName = null;
-            if (playPauseBtn) playPauseBtn.disabled = true;
-            if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
-            drawInitialMessage("Error al decodificar audio.");
-            if (loaderOverlay) loaderOverlay.classList.add('hidden');
+                
+                console.log("Audio procesado y cargado.");
+                resolve(decodedBuffer); // 3. Resolvemos la promesa cuando todo está listo
+
+            }, function(error) {
+                console.error("Error decodificando audio:", error); alert("Error al decodificar. Formato no compatible?");
+                audioBuffer = null;
+                loadedAudioFileName = null;
+                if (playPauseBtn) playPauseBtn.disabled = true;
+                if (exportToBuffersBtn) exportToBuffersBtn.disabled = true;
+                drawInitialMessage("Error al decodificar audio.");
+                if (loaderOverlay) loaderOverlay.classList.add('hidden');
+                reject(error); // 4. Rechazamos la promesa en error
+            });
         });
     }
     async function loadInitialAudio(url) {
@@ -3906,12 +3978,15 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                  throw new Error(`No se pudo cargar el audio inicial: ${response.statusText}`);
             }
             const arrayBuffer = await response.arrayBuffer();
-            processArrayBuffer(arrayBuffer, true); 
+            // Esto ahora SÍ espera a que la decodificación termine
+            await processArrayBuffer(arrayBuffer, true); 
         } catch (error) {
             console.error("Error al cargar el audio inicial:", error);
             const loadingOverlay = document.getElementById('loading-overlay');
             if(loadingOverlay) loadingOverlay.style.display = 'none';
             drawInitialMessage("No se encontró audio. Carga un archivo.");
+            // Propagamos el error para que el bloque 'load' principal lo maneje
+            throw error;
         }
     }
     function togglePlayPauseFilePlayer() {
@@ -5286,6 +5361,7 @@ function stopSidechainEnvelopeProcessing() {
             loopReverseStates: loopReverseBtns.map(b => b.getAttribute('aria-pressed') === 'true'),
             loopVolumeLevels: loopVolumeFaders.map(c => c?.value ?? "1"),
             loopPlaybackStates: isLoopRealtimePlaying.map(s => s),
+            loopFades: JSON.parse(JSON.stringify(loopFades)),
             loopZoomLevels: loopZoomLevels.map(z => z),
             loopPanOffsets: loopPanOffsets.map(p => p),
             
@@ -5313,7 +5389,7 @@ function stopSidechainEnvelopeProcessing() {
         updateStateBtnUI();
     }
     
-    function applySavedAppState(state){
+    async function applySavedAppState(state){ // <--- AÑADE ASYNC
         console.log("Aplicando estado guardado...");
         
         const deepCopy = (data) => data ? JSON.parse(JSON.stringify(data)) : data;
@@ -5325,7 +5401,7 @@ function stopSidechainEnvelopeProcessing() {
         if (state.selectedSource === 'mic') {
             if (micSelect) micSelect.value = state.selectedMicId;
             if (channelSelect) channelSelect.value = state.selectedMicChannel;
-            handleSourceChange();
+            await handleSourceChange(); // <--- AÑADE AWAIT
         }
         if (micMuteBtn) micMuteBtn.setAttribute('aria-pressed', String(state.isMicCurrentlyMuted));
         isMicMuted = state.isMicCurrentlyMuted;
@@ -5363,6 +5439,36 @@ function stopSidechainEnvelopeProcessing() {
         if (state.loopRegionSelections) loopSelections = deepCopy(state.loopRegionSelections);
         if (state.sampleRegionSelections) sampleSelections = deepCopy(state.sampleRegionSelections);
         if (state.loopZoomLevels) loopZoomLevels = deepCopy(state.loopZoomLevels);
+        if (state.loopFades) {
+            loopFades = deepCopy(state.loopFades);
+            // Nos aseguramos de que el estado 'dragging' no se restaure
+            loopFades.forEach(fade => fade.dragging = null);
+        }
+
+        // Detener todos los loops actuales antes de restaurar el estado
+        isLoopRealtimePlaying.forEach((isPlaying, i) => {
+            if (isPlaying) {
+                stopLoopRealtimePlayback(i);
+            }
+        });
+
+        if (state.loopPlaybackStates) {
+            isLoopRealtimePlaying = deepCopy(state.loopPlaybackStates);
+            isLoopRealtimePlaying.forEach((shouldPlay, i) => {
+                if (shouldPlay) {
+                    // Solo intentar reproducir si el buffer dedicado existe (creado al cargar la sesión)
+                    if (loopDedicatedBuffers[i]) {
+                        startLoopRealtimePlayback(i);
+                    } else {
+                        isLoopRealtimePlaying[i] = false; // Corregir estado si no hay buffer
+                    }
+                }
+                // Actualizar el texto del botón
+                if(loopPlayPauseBtns[i]) {
+                    loopPlayPauseBtns[i].textContent = shouldPlay && loopDedicatedBuffers[i] ? "Pause" : "Play";
+                }
+            });
+        }
         if (state.loopPanOffsets) loopPanOffsets = deepCopy(state.loopPanOffsets);
         state.loopSpeedSettings?.forEach((val, i) => { if(loopSpeedControls[i]) localUpdateRangeParamProgrammatic(loopSpeedControls[i], parseFloat(val)); });
         state.loopVolumeLevels?.forEach((val, i) => { if(loopVolumeFaders[i]) localUpdateRangeParamProgrammatic(loopVolumeFaders[i], parseFloat(val)); });
@@ -5451,8 +5557,8 @@ function stopSidechainEnvelopeProcessing() {
                     setTimeout(()=>{btn.style.backgroundColor=""; updateStateBtnUI();},600);
                 } else {
                     if(savedStates[i]){
-                        setTimeout(() => { 
-                          applySavedAppState(savedStates[i]);
+                        setTimeout(async () => { // <--- AÑADE ASYNC
+                          await applySavedAppState(savedStates[i]); // <--- AÑADE AWAIT
                         }, 0);
                         btn.style.backgroundColor="green";
                         setTimeout(()=>{btn.style.backgroundColor="";},600);
@@ -5477,8 +5583,8 @@ function stopSidechainEnvelopeProcessing() {
                     setTimeout(()=>{btn.style.backgroundColor=""; updateStateBtnUI();},600);
                 } else {
                     if(savedStates[i]){
-                        setTimeout(() => { 
-                          applySavedAppState(savedStates[i]);
+                        setTimeout(async () => { // <--- AÑADE ASYNC
+                          await applySavedAppState(savedStates[i]); // <--- AÑADE AWAIT
                         }, 0);
                         btn.style.backgroundColor="green";
                         setTimeout(()=>{btn.style.backgroundColor="";},600);
