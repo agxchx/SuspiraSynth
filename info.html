@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUSPIRA - Inicio</title>
+    <style>
+        /* ===================================================================
+           ESTILOS GENERALES
+           =================================================================== */
+        :root {
+            /* Colores */
+            --color-bg-dark: #000000;
+            --color-text-light: #ffffff;
+            /* CORRECCIÓN 3: Rosado Salmón para el contraste */
+            --color-highlight: #FA8072; 
+            --color-button-border: #FA8072;
+            /* CORRECCIÓN 1: Fuente Avenir (con fallbacks) */
+            --font-main: 'Avenir Next', Avenir, 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            /* Medidas */
+            --header-height: 80vh; 
+            --footer-height: 20vh; 
+        }
+
+        /* Estilos del cuerpo y la base */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background-color: var(--color-bg-dark);
+            color: var(--color-text-light);
+            overflow-x: hidden;
+        }
+
+        a {
+            color: var(--color-highlight);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        a:hover {
+            color: var(--color-text-light);
+        }
+
+        /* Contenedor principal para la división de 50/50 */
+        .main-container {
+            display: flex;
+            height: var(--header-height);
+            width: 100%;
+        }
+
+        /* ===================================================================
+           PANEL DE INFORMACIÓN (IZQUIERDA)
+           =================================================================== */
+        .info-panel {
+            width: 50%;
+            display: flex;
+            align-items: center;
+            padding: 0 5vw;
+            box-sizing: border-box;
+            background-color: var(--color-bg-dark);
+            /* CORRECCIÓN 2: Alinea el contenido a la izquierda */
+            justify-content: flex-start; 
+        }
+
+        .info-content {
+            /* CORRECCIÓN 2: Alineación de texto a la izquierda */
+            text-align: left; 
+            max-width: 500px;
+        }
+
+        .info-content h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .info-content p {
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            color: #ccc;
+        }
+
+        /* CORRECCIÓN 3: Estilo del botón/link de newsletter */
+        .newsletter-link {
+            display: inline-block;
+            font-size: 1.1rem;
+            padding: 0.5rem 1.5rem;
+            border: 2px solid var(--color-button-border);
+            color: var(--color-button-border);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .newsletter-link:hover {
+            background-color: var(--color-button-border);
+            color: var(--color-bg-dark);
+        }
+
+        /* ===================================================================
+           PANEL DE LIBRERÍA (DERECHA)
+           =================================================================== */
+        .library-panel {
+            width: 50%;
+            height: 100%;
+            /* CORRECCIÓN USUARIO 1: Permitir scroll vertical */
+            overflow-y: auto; 
+            border-left: 1px solid #333;
+        }
+
+        .library-scroll-track {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            width: 100%;
+            /* CORRECCIÓN USUARIO 1: Eliminar animación de scroll */
+            /* animation: scroll-down 60s linear infinite; */
+        }
+
+        /* CORRECCIÓN USUARIO 1: Eliminar keyframes de animación */
+        /*
+        @keyframes scroll-down {
+            0% {
+                transform: translateY(0%);
+            }
+            100% {
+                transform: translateY(-50%); 
+            }
+        }
+        */
+
+        .session-card {
+            width: calc(33.333% - 20px); 
+            margin: 10px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* CORRECCIÓN 3: Hover en los cuadros de la librería */
+        .session-square {
+            width: 100%;
+            padding-top: 100%; 
+            background-color: #333;
+            margin-bottom: 10px;
+            border: 1px solid #555;
+            transition: background-color 0.3s, border-color 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden; 
+        }
+        .session-square img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Esto hace que la imagen llene el espacio sin deformarse */
+            transition: transform 0.3s ease; /* Efecto suave para el hover */
+        }
+
+        .session-card:hover .session-square {
+            background-color: #555;
+            border-color: var(--color-highlight); /* Contraste en hover */
+        }
+
+        .session-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+
+        .session-card .session-author {
+            color: #999;
+            font-size: 0.8rem;
+        }
+
+        /* ===================================================================
+           CAJA DE CONTACTO (FOOTER)
+           =================================================================== */
+        .contact-box {
+            height: var(--footer-height);
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            background-color: #111;
+            padding: 10px 0;
+            box-sizing: border-box;
+            border-top: 1px solid #333;
+        }
+
+        .contact-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+        
+        /* CORRECCIÓN USUARIO 2: Wrapper para contenido de contacto */
+        .contact-content-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        
+        .contact-content-wrapper p {
+            margin: 0;
+        }
+
+
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <div class="info-panel">
+            <div class="info-content">
+                <h1>_sintx // Suspira</h1>
+                
+                <p>_sintx es un Playground de Síntesis y Procesamiento de Audio que convierte un navegador web en un estudio de sonido modular avanzado. Este modelo interactivo audiovisual recopila funciones de procesamientos avanzados de audio, diferentes formas de síntesis de sonido y un espectrograma interactivo para crear o interpretar sonido desde un navegador web. La aplicación permite cargar archivos de audio, grabar directamente desde un micrófono o sintetizar sonidos desde cero. El corazón de SUSPIRA reside en módulos de procesamiento, Granulador (para dividir y reorganizar el audio en pequeños "granos"), un Sintetizador Espectral único y un completo sistema de Efectos y Ecualización. Está diseñado para la experimentación en tiempo real, ofreciendo un control detallado sobre reproducciones en bucle, modulación y ruteo de señales, ideal tanto para la exploración sónica como para la producción de texturas de audio complejas.
+</p>
+                <p>Está aplicación web es creada y realizada por Agustin Echeverria y elconx con la ayuda de inteligencia artificial.</p>
+                <p>BSD 2-Clause License</p>
+                <p>Copyright (c) 2025, agxchx</p>
+
+                </div>
+        </div>
+
+        <div class="library-panel">
+            <div id="session-list">
+                <a href="playgroundsuspira.html?session=prueba.suspira" class="session-card">
+                    <div class="session-square">
+                        <img src="1.png" alt="Miniatura de Viaje Astral">
+                    </div>
+                    <p>Viaje Astral</p>
+                    <p class="session-author">Autor: A. Luna</p>
+                </a>
+                <a href="playgroundsuspira.html?session=rituales_sonicos.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Rituales Sónicos</p>
+                    <p class="session-author">Autor: B. Cosmos</p>
+                </a>
+                <a href="playgroundsuspira.html?session=texturas_de_metal.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Texturas de Metal</p>
+                    <p class="session-author">Autor: C. Cobre</p>
+                </a>
+                <a href="playgroundsuspira.html?session=bosque_granular.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Bosque Granular</p>
+                    <p class="session-author">Autor: D. Silva</p>
+                </a>
+                <a href="playgroundsuspira.html?session=resonancia_del_mar.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Resonancia del Mar</p>
+                    <p class="session-author">Autor: E. Ola</p>
+                </a>
+                <a href="playgroundsuspira.html?session=ecos_del_desierto.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Ecos del Desierto</p>
+                    <p class="session-author">Autor: F. Arena</p>
+                </a>
+                <a href="playgroundsuspira.html?session=frecuencias_olvidadas.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Frecuencias Olvidadas</p>
+                    <p class="session-author">Autor: G. Hertz</p>
+                </a>
+                <a href="playgroundsuspira.html?session=sintesis_pura.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Síntesis Pura</p>
+                    <p class="session-author">Autor: H. Dron</p>
+                </a>
+                <a href="playgroundsuspira.html?session=viento_y_filtros.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Viento y Filtros</p>
+                    <p class="session-author">Autor: I. Aire</p>
+                </a>
+                <a href="playgroundsuspira.html?session=bucle_infinito.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Bucle Infinito</p>
+                    <p class="session-author">Autor: J. Loop</p>
+                </a>
+                <a href="playgroundsuspira.html?session=ruido_blanco.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Ruido Blanco</p>
+                    <p class="session-author">Autor: K. Estática</p>
+                </a>
+                <a href="playgroundsuspira.html?session=armonicos_perdidos.suspira" class="session-card">
+                    <div class="session-square"></div>
+                    <p>Armónicos Perdidos</p>
+                    <p class="session-author">Autor: L. Tono</p>
+                </a>
+            </div>
+
+            <div class="library-scroll-track">
+                </div>
+            
+            <script>
+                // CORRECCIÓN USUARIO 1: Script modificado para solo mover el contenido (sin duplicar)
+                document.addEventListener('DOMContentLoaded', function() {
+                    const sessionList = document.getElementById('session-list');
+                    const scrollTrack = document.querySelector('.library-scroll-track');
+                    
+                    const content = sessionList.innerHTML;
+
+                    // Inserta el contenido (una sola vez) en el track de desplazamiento
+                    scrollTrack.innerHTML = content;
+
+                    // Oculta la lista original (solo era el template)
+                    sessionList.style.display = 'none'; 
+                });
+            </script>
+        </div>
+    </div>
+
+    <div class="contact-box">
+        <h3>Contacto</h3>
+        <div class="contact-content-wrapper">
+            <p>¿Tienes preguntas o sugerencias? <a href="mailto:agustinecheverriasonido@gmail.com">Envíanos un correo electrónico</a></p>
+            <a href="#" class="newsletter-link">Suscríbete a nuestra Newsletter</a>
+        </div>
+    </div>
+
+</body>
+</html>
