@@ -58,7 +58,7 @@ class Particle {
 let particlesArray = [];
 let shadowParticlesArray = [];
 let eqBandInstances = [];
-const particleCount = 20;
+const particleCount = 50;
 
 // --- Funciones de Cálculo Optimizadas ---
 
