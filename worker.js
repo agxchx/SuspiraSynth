@@ -56,7 +56,7 @@ class Particle {
 let particlesArray = [];
 let shadowParticlesArray = [];
 let eqBandInstances = [];
-const particleCount = 100;
+const particleCount = 50;
 let particlesInitialized = false; // Bandera para controlar si ya nacieron en el EQ
 
 // --- Funciones de Cálculo Optimizadas ---
@@ -95,7 +95,7 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
     if (allEqBands.length === 0) return new Float32Array(0);
 
     const grid = {};
-    const cellSize = 200;
+    const cellSize = 150;
 
     for (const p of particleSystem) {
         const cellX = Math.floor(p.x / cellSize);
@@ -133,7 +133,7 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
                         }
                         
                         let level = isShadow ? closestBand.dryLevel : closestBand.wetLevel;
-                        let maxDist = 10 + (level * 2000);
+                        let maxDist = 10 + (level * 1000);
                         
                         if (distSq < maxDist * maxDist) {
                             lines.push(p1.x, p1.y, p2.x, p2.y, (1 - Math.sqrt(distSq) / maxDist) * level * 1.5);
