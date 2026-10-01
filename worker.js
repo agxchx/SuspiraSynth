@@ -82,7 +82,7 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
     if (allEqBands.length === 0) return new Float32Array(0);
 
     const grid = {};
-    const cellSize = 400; // Radio de conexión. Se puede ajustar para cambiar la densidad de las líneas.
+    const cellSize = 500; // Radio de conexión. Se puede ajustar para cambiar la densidad de las líneas.
 
     // 1. Poblar la rejilla con las posiciones de las partículas
     for (const p of particleSystem) {
@@ -125,7 +125,7 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
                         }
                         
                         const level = isShadow ? closestBand.dryLevel : closestBand.wetLevel;
-                        const maxDist = 10 + (level * 150);
+                        const maxDist = 10 + (level * 300);
                         
                         if (distSq < maxDist * maxDist) {
                             // Almacena x1, y1, x2, y2, y la opacidad de la línea
