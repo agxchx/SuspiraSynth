@@ -1,11 +1,10 @@
 // worker.js - El motor de cálculo para la animación de partículas
 
-// --- Clases y Lógica de Simulación (Ahora dentro del Worker) ---
+// --- Clases y Lógica de Simulación ---
 
-// La clase Particle vivirá aquí, en el worker, lejos del hilo principal.
 class Particle {
     constructor(isShadow = false) {
-        this.x = Math.random() * 1000; // Inicia en una posición aleatoria
+        this.x = Math.random() * 1000;
         this.y = Math.random() * 500;
         this.speedX = (Math.random() - 0.5) * 2;
         this.speedY = (Math.random() - 0.5) * 2;
@@ -19,11 +18,10 @@ class Particle {
         const maxSpeed = 2.5, friction = 0.97, switchDistance = 30;
         let target = eqBands[this.targetIndex];
 
-        // Si el objetivo no es válido (p.ej. al inicio), busca uno nuevo.
         if (!target) {
             this.targetIndex = Math.floor(Math.random() * eqBands.length);
             target = eqBands[this.targetIndex];
-            if (!target) return; // Si aún no hay objetivo, salimos.
+            if (!target) return;
         }
 
         const level = this.isShadow ? target.dryLevel : target.wetLevel;
@@ -59,16 +57,31 @@ let particlesArray = [];
 let shadowParticlesArray = [];
 let eqBandInstances = [];
 const particleCount = 100;
+let particlesInitialized = false; // Bandera para controlar si ya nacieron en el EQ
 
 // --- Funciones de Cálculo Optimizadas ---
 
-// Función para inicializar las partículas dentro del worker
-function initParticleSystem() {
+// Función para inicializar las partículas (ahora acepta las bandas de EQ opcionalmente)
+function initParticleSystem(eqBands = []) {
     particlesArray = [];
     shadowParticlesArray = [];
     for (let i = 0; i < particleCount; i++) {
-        particlesArray.push(new Particle(false));
-        shadowParticlesArray.push(new Particle(true));
+        const p = new Particle(false);
+        const sp = new Particle(true);
+
+        // Si existen bandas de EQ, hacemos que nazcan directamente sobre ellas
+        if (eqBands && eqBands.length > 0) {
+            const randomBand = eqBands[Math.floor(Math.random() * eqBands.length)];
+            p.x = randomBand.x + (Math.random() - 0.5) * 10;
+            p.y = randomBand.y + (Math.random() - 0.5) * 10;
+            
+            const randomBandShadow = eqBands[Math.floor(Math.random() * eqBands.length)];
+            sp.x = randomBandShadow.x + (Math.random() - 0.5) * 10;
+            sp.y = randomBandShadow.y + (Math.random() - 0.5) * 10;
+        }
+
+        particlesArray.push(p);
+        shadowParticlesArray.push(sp);
     }
 }
 
@@ -82,9 +95,8 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
     if (allEqBands.length === 0) return new Float32Array(0);
 
     const grid = {};
-    const cellSize = 500; // Radio de conexión. Se puede ajustar para cambiar la densidad de las líneas.
+    const cellSize = 200;
 
-    // 1. Poblar la rejilla con las posiciones de las partículas
     for (const p of particleSystem) {
         const cellX = Math.floor(p.x / cellSize);
         const cellY = Math.floor(p.y / cellSize);
@@ -95,40 +107,35 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
         grid[key].push(p);
     }
 
-    // 2. Comprobar conexiones solo en celdas adyacentes
     for (const p1 of particleSystem) {
         const cellX = Math.floor(p1.x / cellSize);
         const cellY = Math.floor(p1.y / cellSize);
 
-        // Itera sobre la celda actual y las 8 vecinas
         for (let dx = -1; dx <= 1; dx++) {
             for (let dy = -1; dy <= 1; dy++) {
                 const key = `${cellX + dx},${cellY + dy}`;
                 if (grid[key]) {
                     for (const p2 of grid[key]) {
-                        // Evita comparar una partícula consigo misma o duplicar líneas
                         if (p1 === p2) continue;
 
                         const distSq = (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
                         
-                        // Encuentra la banda de EQ más cercana al punto medio de la línea
-                        const midX = (p1.x + p2.x) / 2;
-                        const midY = (p1.y + p2.y) / 2;
+                        let midX = (p1.x + p2.x) / 2;
+                        let midY = (p1.y + p2.y) / 2;
                         let closestBand = allEqBands[0];
                         let minBandDistSq = Infinity;
                         for (const band of allEqBands) {
-                            const bandDistSq = (midX - band.x)**2 + (midY - band.y)**2;
+                            let bandDistSq = (midX - band.x)**2 + (midY - band.y)**2;
                             if (bandDistSq < minBandDistSq) {
                                 minBandDistSq = bandDistSq;
                                 closestBand = band;
                             }
                         }
                         
-                        const level = isShadow ? closestBand.dryLevel : closestBand.wetLevel;
-                        const maxDist = 10 + (level * 300);
+                        let level = isShadow ? closestBand.dryLevel : closestBand.wetLevel;
+                        let maxDist = 10 + (level * 2000);
                         
                         if (distSq < maxDist * maxDist) {
-                            // Almacena x1, y1, x2, y2, y la opacidad de la línea
                             lines.push(p1.x, p1.y, p2.x, p2.y, (1 - Math.sqrt(distSq) / maxDist) * level * 1.5);
                         }
                     }
@@ -141,41 +148,38 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
 
 // --- Manejador de Mensajes del Worker ---
 
-// El worker escucha mensajes del hilo principal.
 self.onmessage = function(e) {
-    const { type, payload } = e.data;
+    let { type, payload } = e.data;
 
     if (type === 'init') {
-        // Inicializar las partículas cuando el hilo principal lo pida.
         initParticleSystem();
     } else if (type === 'update') {
-        // Recibe los datos de las bandas de EQ del hilo principal.
         eqBandInstances = payload.eqBands;
 
-        // Actualiza la posición de todas las partículas.
+        // Si todavía no se inicializaron y ya llegaron las bandas, nacen ahí
+        if (!particlesInitialized && eqBandInstances.length > 0) {
+            initParticleSystem(eqBandInstances);
+            particlesInitialized = true;
+        }
+
         particlesArray.forEach(p => p.update(eqBandInstances));
         shadowParticlesArray.forEach(p => p.update(eqBandInstances));
 
-        // Calcula las conexiones de forma optimizada.
-        const lines = calculateConnections(particlesArray, false, eqBandInstances);
-        const shadowLines = calculateConnections(shadowParticlesArray, true, eqBandInstances);
+        let lines = calculateConnections(particlesArray, false, eqBandInstances);
+        let shadowLines = calculateConnections(shadowParticlesArray, true, eqBandInstances);
         
-        // Extrae las coordenadas de las partículas para enviar de vuelta.
-        const particleCoords = new Float32Array(particlesArray.length * 2);
+        let particleCoords = new Float32Array(particlesArray.length * 2);
         for(let i = 0; i < particlesArray.length; i++) {
             particleCoords[i * 2] = particlesArray[i].x;
             particleCoords[i * 2 + 1] = particlesArray[i].y;
         }
         
-        const shadowParticleCoords = new Float32Array(shadowParticlesArray.length * 2);
+        let shadowParticleCoords = new Float32Array(shadowParticlesArray.length * 2);
         for(let i = 0; i < shadowParticlesArray.length; i++) {
             shadowParticleCoords[i * 2] = shadowParticlesArray[i].x;
             shadowParticleCoords[i * 2 + 1] = shadowParticlesArray[i].y;
         }
 
-        // Envía los datos listos para ser dibujados de vuelta al hilo principal.
-        // Usamos "Transferable Objects" (los .buffer de los arrays) para que el envío sea
-        // casi instantáneo, sin copiar datos.
         self.postMessage({
             particleCoords,
             shadowParticleCoords,
