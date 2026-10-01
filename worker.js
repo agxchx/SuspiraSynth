@@ -58,7 +58,7 @@ class Particle {
 let particlesArray = [];
 let shadowParticlesArray = [];
 let eqBandInstances = [];
-const particleCount = 50;
+const particleCount = 100;
 
 // --- Funciones de Cálculo Optimizadas ---
 
@@ -82,7 +82,7 @@ function calculateConnections(particleSystem, isShadow, allEqBands) {
     if (allEqBands.length === 0) return new Float32Array(0);
 
     const grid = {};
-    const cellSize = 300; // Radio de conexión. Se puede ajustar para cambiar la densidad de las líneas.
+    const cellSize = 400; // Radio de conexión. Se puede ajustar para cambiar la densidad de las líneas.
 
     // 1. Poblar la rejilla con las posiciones de las partículas
     for (const p of particleSystem) {
