@@ -1471,6 +1471,13 @@
               </div>
               <input type="number" class="dial-value-input" id="reverbFbToneDialValue" value="5000" min="500" max="12000" step="100" data-unit="Hz" data-decimals="0" aria-labelledby="reverbFbToneDialLabel">
             </div>
+            <div class="dial-container" id="reverbFbVolumeDialContainer">
+              <label for="reverbFbVolumeDial" id="reverbFbVolumeDialLabel">Vol.</label>
+              <div class="dial mappable" id="reverbFbVolumeDial" data-min="0" data-max="1.5" data-step="0.01" data-value="0.8" data-decimals="2">
+                <div class="dial-indicator"></div>
+              </div>
+              <input type="number" class="dial-value-input" id="reverbFbVolumeDialValue" value="0.80" min="0" max="1.5" step="0.01" data-decimals="2" aria-labelledby="reverbFbVolumeDialLabel">
+            </div>
           </div>
         </div>
         </div>
@@ -2381,7 +2388,10 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
     let convolverNode, dryGainNode_reverb, wetGainNode_reverb, inputGainNode_reverb, reverbBooster;
     let reverbSizeDialEl, reverbDryWetDialEl;
     let reverbVolumeGain;
-    let reverbFbDelay, reverbFbTone, reverbFbHighpass, reverbFbSaturator, reverbFbGain;
+    const REVERB_VOLUME_MULT = 1.4;
+    const REVERB_FB_AUX2_RATIO = 1.5; // aux2 = Tiempo x 1.5 (evita eco metronomico)
+    let reverbFbSend, reverbFbAux1In, reverbFbAux1Delay, reverbFbAux1Tone, reverbFbAux2Delay, reverbFbAux2Tone;
+    let reverbFbHighpass, reverbFbSaturator, reverbFbGain, reverbFbOutVolume;
     let reverbFbEnabled = false, reverbFbAmount = 0.3;
     const NUM_EQ_BANDS = 7;
     
@@ -2434,6 +2444,7 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
     const reverbFbAmountDialEl = document.getElementById('reverbFbAmountDial');
     const reverbFbTimeDialEl = document.getElementById('reverbFbTimeDial');
     const reverbFbToneDialEl = document.getElementById('reverbFbToneDial');
+    const reverbFbVolumeDialEl = document.getElementById('reverbFbVolumeDial');
     const pitchBendDialEl = document.getElementById('pitchBendDial');
     
     const granulatorPlayToggleBtn = document.getElementById('granulatorPlayToggleBtn');
@@ -3697,24 +3708,38 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         reverbBooster.gain.value = 1.35;
         convolverNode=audioContext.createConvolver();
         reverbVolumeGain = audioContext.createGain();
-        reverbVolumeGain.gain.value = reverbVolumeFader ? parseFloat(reverbVolumeFader.value) : 1;
+        reverbVolumeGain.gain.value = (reverbVolumeFader ? parseFloat(reverbVolumeFader.value) : 1) * REVERB_VOLUME_MULT;
         if (granulatorFilterQEl) granulatorFilter.Q.value = parseFloat(granulatorFilterQEl.getAttribute('data-value'));
-        reverbFbDelay = audioContext.createDelay(2.0);
-        reverbFbDelay.delayTime.value = parseFloat(reverbFbTimeDialEl?.getAttribute('data-value') ?? 0.25);
-        reverbFbTone = audioContext.createBiquadFilter();
-        reverbFbTone.type = 'lowpass';
-        reverbFbTone.frequency.value = parseFloat(reverbFbToneDialEl?.getAttribute('data-value') ?? 5000);
-        reverbFbHighpass = audioContext.createBiquadFilter();
-        reverbFbHighpass.type = 'highpass';
-        reverbFbHighpass.frequency.value = 40;
-        reverbFbSaturator = audioContext.createWaveShaper();
         {
-            const n = 1024, curve = new Float32Array(n), k = 2.5;
-            for (let i = 0; i < n; i++) { const x = (i * 2) / (n - 1) - 1; curve[i] = Math.tanh(x * k) / Math.tanh(k); }
-            reverbFbSaturator.curve = curve;
+            const fbTime = parseFloat(reverbFbTimeDialEl?.getAttribute('data-value') ?? 0.25);
+            const fbToneHz = parseFloat(reverbFbToneDialEl?.getAttribute('data-value') ?? 5000);
+            reverbFbSend = audioContext.createGain();            // entrada desde la reverb (apagado por defecto)
+            reverbFbSend.gain.value = 0;
+            reverbFbAux1In = audioContext.createGain();          // suma: reverb + retorno de aux2
+            reverbFbAux1Delay = audioContext.createDelay(2.0);
+            reverbFbAux1Delay.delayTime.value = fbTime;
+            reverbFbAux1Tone = audioContext.createBiquadFilter();
+            reverbFbAux1Tone.type = 'lowpass';
+            reverbFbAux1Tone.frequency.value = fbToneHz;
+            reverbFbAux2Delay = audioContext.createDelay(2.0);
+            reverbFbAux2Delay.delayTime.value = Math.min(2.0, fbTime * REVERB_FB_AUX2_RATIO);
+            reverbFbAux2Tone = audioContext.createBiquadFilter();
+            reverbFbAux2Tone.type = 'lowpass';
+            reverbFbAux2Tone.frequency.value = fbToneHz;
+            reverbFbHighpass = audioContext.createBiquadFilter(); // evita acumulacion de graves/DC
+            reverbFbHighpass.type = 'highpass';
+            reverbFbHighpass.frequency.value = 40;
+            reverbFbSaturator = audioContext.createWaveShaper();  // saturacion suave del lazo
+            {
+                const n = 1024, curve = new Float32Array(n), k = 2.5;
+                for (let i = 0; i < n; i++) { const x = (i * 2) / (n - 1) - 1; curve[i] = Math.tanh(x * k) / Math.tanh(k); }
+                reverbFbSaturator.curve = curve;
+            }
+            reverbFbGain = audioContext.createGain();            // cantidad de retroalimentacion
+            reverbFbGain.gain.value = 0;
+            reverbFbOutVolume = audioContext.createGain();       // volumen de salida del feedback
+            reverbFbOutVolume.gain.value = parseFloat(reverbFbVolumeDialEl?.getAttribute('data-value') ?? 0.8);
         }
-        reverbFbGain = audioContext.createGain();
-        reverbFbGain.gain.value = 0;
         analyserWet = audioContext.createAnalyser();
         analyserWet.fftSize = 2048;
         analyserWet.smoothingTimeConstant = 0.6;
@@ -3811,12 +3836,13 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
             if (granulatorFilter) granulatorFilter.Q.setTargetAtTime(parseFloat(e.detail.value), audioContext.currentTime, 0.01);
         });
         if (reverbVolumeFader) reverbVolumeFader.addEventListener('input', () => {
-            if (reverbVolumeGain) reverbVolumeGain.gain.setTargetAtTime(parseFloat(reverbVolumeFader.value), audioContext.currentTime, 0.01);
+            if (reverbVolumeGain) reverbVolumeGain.gain.setTargetAtTime(parseFloat(reverbVolumeFader.value) * REVERB_VOLUME_MULT, audioContext.currentTime, 0.01);
         });
         function updateReverbFeedbackGain() {
             if (!reverbFbGain || !audioContext) return;
-            const target = reverbFbEnabled ? reverbFbAmount : 0;
-            reverbFbGain.gain.setTargetAtTime(target, audioContext.currentTime, 0.05);
+            const t = audioContext.currentTime;
+            reverbFbGain.gain.setTargetAtTime(reverbFbEnabled ? reverbFbAmount : 0, t, 0.05);
+            if (reverbFbSend) reverbFbSend.gain.setTargetAtTime(reverbFbEnabled ? 1 : 0, t, 0.05);
         }
         if (reverbFbPowerSwitch) reverbFbPowerSwitch.addEventListener('change', (e) => { reverbFbEnabled = e.target.checked; updateReverbFeedbackGain(); });
         if (reverbFbAmountDialEl) reverbFbAmountDialEl.addEventListener('dialChange', (e) => {
@@ -3824,10 +3850,17 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
             updateReverbFeedbackGain();
         });
         if (reverbFbTimeDialEl) reverbFbTimeDialEl.addEventListener('dialChange', (e) => {
-            if (reverbFbDelay) reverbFbDelay.delayTime.setTargetAtTime(parseFloat(e.detail.value), audioContext.currentTime, 0.05);
+            const t = parseFloat(e.detail.value);
+            if (reverbFbAux1Delay) reverbFbAux1Delay.delayTime.setTargetAtTime(t, audioContext.currentTime, 0.05);
+            if (reverbFbAux2Delay) reverbFbAux2Delay.delayTime.setTargetAtTime(Math.min(2.0, t * REVERB_FB_AUX2_RATIO), audioContext.currentTime, 0.05);
         });
         if (reverbFbToneDialEl) reverbFbToneDialEl.addEventListener('dialChange', (e) => {
-            if (reverbFbTone) reverbFbTone.frequency.setTargetAtTime(parseFloat(e.detail.value), audioContext.currentTime, 0.02);
+            const hz = parseFloat(e.detail.value);
+            if (reverbFbAux1Tone) reverbFbAux1Tone.frequency.setTargetAtTime(hz, audioContext.currentTime, 0.02);
+            if (reverbFbAux2Tone) reverbFbAux2Tone.frequency.setTargetAtTime(hz, audioContext.currentTime, 0.02);
+        });
+        if (reverbFbVolumeDialEl) reverbFbVolumeDialEl.addEventListener('dialChange', (e) => {
+            if (reverbFbOutVolume) reverbFbOutVolume.gain.setTargetAtTime(parseFloat(e.detail.value), audioContext.currentTime, 0.02);
         });
         patchableParameterIds.forEach(id => {
             const el = document.getElementById(id);
@@ -3965,7 +3998,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
     }
     function createMainAudioChain() {
         if (!audioContext || !finalOutputGain) { console.error("Nodos de audio críticos no inicializados en createMainAudioChain"); return; }
-        const nodesToClean = [ gainNode, micGainNode, micBooster, granulatorVolumeGain, spectralSynthVolumeGain, spectralSynthBooster, recordSourceMixer, inputGainNode_reverb, dryGainNode_reverb, wetGainNode_reverb, reverbBooster, convolverNode, finalOutputGain, sourceSidechainSendGain, sidechainSummingGain, sidechainAnalyserNode, sidechainModulationSource, sidechainModulationGain, analyserDry, analyserWet, dryBus, wetBus, filePlayerDrySend, filePlayerWetSend, micDrySend, micWetSend, granulatorDrySend, granulatorWetSend, spectralSynthDrySend, spectralSynthWetSend, granulatorFilter, reverbVolumeGain, reverbFbDelay, reverbFbTone, reverbFbHighpass, reverbFbSaturator, reverbFbGain, masterLimiter, masterSafetyClip, ...loopVolumeGains, ...loopSidechainSendGains, ...loopDrySends, ...loopWetSends ];
+        const nodesToClean = [ gainNode, micGainNode, micBooster, granulatorVolumeGain, spectralSynthVolumeGain, spectralSynthBooster, recordSourceMixer, inputGainNode_reverb, dryGainNode_reverb, wetGainNode_reverb, reverbBooster, convolverNode, finalOutputGain, sourceSidechainSendGain, sidechainSummingGain, sidechainAnalyserNode, sidechainModulationSource, sidechainModulationGain, analyserDry, analyserWet, dryBus, wetBus, filePlayerDrySend, filePlayerWetSend, micDrySend, micWetSend, granulatorDrySend, granulatorWetSend, spectralSynthDrySend, spectralSynthWetSend, granulatorFilter, reverbVolumeGain, reverbFbSend, reverbFbAux1In, reverbFbAux1Delay, reverbFbAux1Tone, reverbFbAux2Delay, reverbFbAux2Tone, reverbFbHighpass, reverbFbSaturator, reverbFbGain, reverbFbOutVolume, masterLimiter, masterSafetyClip, ...loopVolumeGains, ...loopSidechainSendGains, ...loopDrySends, ...loopWetSends ];
         if (masterGain) nodesToClean.push(masterGain);
         eqBandInstances.forEach(band => { if (band && band.filterNode) nodesToClean.push(band.filterNode); });
         nodesToClean.forEach(node => { if (node && typeof node.disconnect === 'function') try { node.disconnect(); } catch (e) {} });
@@ -3995,12 +4028,19 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         if (granulatorLFOGain) granulatorLFOGain.connect(granulatorFilter.frequency);
         if (sidechainModulationSource && sidechainModulationGain) { sidechainModulationSource.connect(sidechainModulationGain); sidechainModulationGain.connect(granulatorFilter.frequency); }
         granulatorFilter.connect(wetGainNode_reverb);
-        granulatorFilter.connect(reverbFbDelay);
-        reverbFbDelay.connect(reverbFbTone);
-        reverbFbTone.connect(reverbFbHighpass);
+        // Feedback independiente: reverb -> aux1 -> aux2 -> aux1 (no vuelve al convolver)
+        granulatorFilter.connect(reverbFbSend);
+        reverbFbSend.connect(reverbFbAux1In);
+        reverbFbAux1In.connect(reverbFbAux1Delay);
+        reverbFbAux1Delay.connect(reverbFbAux1Tone);
+        reverbFbAux1Tone.connect(reverbFbAux2Delay);          // aux1 -> aux2
+        reverbFbAux2Delay.connect(reverbFbAux2Tone);
+        reverbFbAux2Tone.connect(reverbFbHighpass);
         reverbFbHighpass.connect(reverbFbSaturator);
         reverbFbSaturator.connect(reverbFbGain);
-        reverbFbGain.connect(convolverNode);
+        reverbFbGain.connect(reverbFbAux1In);                 // aux2 -> aux1 (lazo)
+        reverbFbAux1Tone.connect(reverbFbOutVolume);          // salida del feedback
+        reverbFbOutVolume.connect(analyserWet);
         dryGainNode_reverb.connect(reverbBooster);
         wetGainNode_reverb.connect(reverbBooster);
         reverbBooster.connect(reverbVolumeGain);
@@ -5923,6 +5963,7 @@ function stopSidechainEnvelopeProcessing() {
             reverbFbAmount: reverbFbAmountDialEl?.getAttribute('data-value') ?? "0.3",
             reverbFbTime: reverbFbTimeDialEl?.getAttribute('data-value') ?? "0.25",
             reverbFbTone: reverbFbToneDialEl?.getAttribute('data-value') ?? "5000",
+            reverbFbVolume: reverbFbVolumeDialEl?.getAttribute('data-value') ?? "0.8",
             isGranulatorCurrentlyRunning: isGranulatorRunning,
 
             isSpectralSynthOn: spectralSynthPowerSwitch?.checked ?? false,
@@ -6014,6 +6055,7 @@ function stopSidechainEnvelopeProcessing() {
         if(reverbFbAmountDialEl && state.reverbFbAmount !== undefined) localUpdateDialParamProgrammatic(reverbFbAmountDialEl, parseFloat(state.reverbFbAmount));
         if(reverbFbTimeDialEl && state.reverbFbTime !== undefined) localUpdateDialParamProgrammatic(reverbFbTimeDialEl, parseFloat(state.reverbFbTime));
         if(reverbFbToneDialEl && state.reverbFbTone !== undefined) localUpdateDialParamProgrammatic(reverbFbToneDialEl, parseFloat(state.reverbFbTone));
+        if(reverbFbVolumeDialEl && state.reverbFbVolume !== undefined) localUpdateDialParamProgrammatic(reverbFbVolumeDialEl, parseFloat(state.reverbFbVolume));
         if(reverbFbPowerSwitch && state.reverbFbEnabled !== undefined) { reverbFbPowerSwitch.checked = state.reverbFbEnabled; reverbFbPowerSwitch.dispatchEvent(new Event('change')); }
         if (state.isGranulatorCurrentlyRunning && !isGranulatorRunning) toggleGranulator();
         else if (!state.isGranulatorCurrentlyRunning && isGranulatorRunning) toggleGranulator();
