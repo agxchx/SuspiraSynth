@@ -1097,7 +1097,23 @@
     }
 
 
-  </style>
+  
+    /* ===== Fuente por loop ===== */
+    #source-controls-casilla { display: none !important; }
+    .loop-visualizer-group.loop-active { outline: 2px solid var(--highlight-color, #ff00ff); outline-offset: 2px; border-radius: 4px; }
+    .fader-containerloop { flex-direction: column; gap: 2px; }
+    .loop-menu-btn { position: static; z-index: 7; width: 25px; height: 18px; padding: 0; line-height: 1; font-size: 18px; background: rgba(0,0,0,.45); color: #fff; border: 1px solid #777; border-radius: 4px; cursor: pointer; }
+    .loop-menu-btn.mic-on { color: #ff4d4d; border-color: #ff4d4d; }
+    .loop-menu-panel { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 20; overflow: auto; box-sizing: border-box; padding: 8px; background: rgba(25,25,25,.98); border-radius: 4px; font-size: .78rem; color: #fff; }
+    .loop-menu-panel.open { display: flex; flex-direction: column; gap: 8px; }
+    .loop-menu-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .loop-menu-row.head { justify-content: space-between; font-weight: bold; }
+    .loop-menu-panel button, .loop-menu-panel select { font-size: .75rem; padding: 4px 8px; }
+    .loop-menu-panel select { flex: 1 1 40%; min-width: 0; }
+    .loop-menu-panel .loop-file-name { opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 40%; }
+    .loop-menu-panel button.on { background: #c0392b; color: #fff; }
+    .loop-visualizer-group canvas.drag-over { outline: 2px dashed var(--highlight-color, #f0f); }
+</style>
 </head>
 <body>
   <div id="loading-overlay">
@@ -1114,6 +1130,28 @@
   <main class="main-container">
     <div class="top-controls-grid">
       <div class="column-left">
+        <div class="casilla" id="utility-casilla">
+            <div class="utility-row">
+                <button id="toggleFullscreenBtn" aria-label="Activar Modo fácil">Modo fácil</button>
+                <button id="midiMapBtn" aria-label="Activar mapeo MIDI">MIDI</button>
+                <button id="togglePatchBayBtn" aria-label="Toggle Patch Bay">PatchBay</button>
+                <button id="infoBtn" aria-label="Mostrar información de la sesión">Info</button>
+            </div>
+            <div class="utility-row">
+                <div class="btn-group save-action-buttons">
+                    <button id="stateBtn1" aria-label="Guardar o cargar estado A" class="mappable">Save-A</button>
+                    <button id="stateBtn2" aria-label="Guardar o cargar estado B" class="mappable">Save-B</button>
+                    <button id="stateBtn3" aria-label="Guardar o cargar estado C" class="mappable">Save-C</button>
+                    <button id="stateBtn4" aria-label="Guardar o cargar estado D" class="mappable">Save-D</button>
+                </div>
+                <div class="btn-group mem-buttons">
+                    <button id="memBtn1" aria-label="Grabar o reproducir automatización A" class="mappable">Aut-A</button>
+                    <button id="memBtn2" aria-label="Grabar o reproducir automatización B" class="mappable">Aut-B</button>
+                    <button id="memBtn3" aria-label="Grabar o reproducir automatización C" class="mappable">Aut-C</button>
+                    <button id="memBtn4" aria-label="Grabar o reproducir automatización D" class="mappable">Aut-D</button>
+                </div>
+            </div>
+        </div>
         <div class="casilla" id="source-controls-casilla">
           <h3 class="sr-only">Fuente de Audio</h3>
           <div id="sourceSelectContainer">
@@ -1322,28 +1360,6 @@
         </div>
       </div>
       <div class="column-right">
-        <div class="casilla" id="utility-casilla">
-            <div class="utility-row">
-                <button id="toggleFullscreenBtn" aria-label="Activar Modo fácil">Modo fácil</button>
-                <button id="midiMapBtn" aria-label="Activar mapeo MIDI">MIDI</button>
-                <button id="togglePatchBayBtn" aria-label="Toggle Patch Bay">PatchBay</button>
-                <button id="infoBtn" aria-label="Mostrar información de la sesión">Info</button>
-            </div>
-            <div class="utility-row">
-                <div class="btn-group save-action-buttons">
-                    <button id="stateBtn1" aria-label="Guardar o cargar estado A" class="mappable">Save-A</button>
-                    <button id="stateBtn2" aria-label="Guardar o cargar estado B" class="mappable">Save-B</button>
-                    <button id="stateBtn3" aria-label="Guardar o cargar estado C" class="mappable">Save-C</button>
-                    <button id="stateBtn4" aria-label="Guardar o cargar estado D" class="mappable">Save-D</button>
-                </div>
-                <div class="btn-group mem-buttons">
-                    <button id="memBtn1" aria-label="Grabar o reproducir automatización A" class="mappable">Aut-A</button>
-                    <button id="memBtn2" aria-label="Grabar o reproducir automatización B" class="mappable">Aut-B</button>
-                    <button id="memBtn3" aria-label="Grabar o reproducir automatización C" class="mappable">Aut-C</button>
-                    <button id="memBtn4" aria-label="Grabar o reproducir automatización D" class="mappable">Aut-D</button>
-                </div>
-            </div>
-        </div>
         <div class="casilla" id="reverb-dials-casilla">
             <h4>Reverb</h4>
             <div class="dial-controls-container">
@@ -1593,11 +1609,13 @@
             </div>
           </div>
           <div class="fader-containerloop">
+            <button type="button" id="loopMenuBtn1" class="loop-menu-btn mappable" aria-label="Entradas y envíos Loop 1" title="Entradas y envíos">&#8943;</button>
             <label for="loopVolume1" class="sr-only" id="loopVolume1Label">Volumen Loop 1</label>
             <input type="range" id="loopVolume1" min="0" max="1" step="0.01" value="1" orient="vertical" class="mappable">
             <input type="number" id="loopVolume1ValueInput" class="fader-value-input" min="0" max="1" step="0.01" value="1" aria-labelledby="loopVolume1Label">
           </div>
         </div>
+        <div id="loopMenuPanel1" class="loop-menu-panel"></div>
         <div class="loop-controls">
           <div>
             <label for="speedControl1" id="speedControl1Label">Velocidad:</label>
@@ -1608,6 +1626,7 @@
             <button id="reverseBtn1" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 1">REV</button>
             <button id="loopPlayPauseBtn1" type="button" class="mappable">Play</button>
             <button id="flexPitchBtn1" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 1">FLEX</button>
+            <button id="muteBtn1" class="loop-action-btn mappable" aria-pressed="false" aria-label="Mute micrófono Loop 1" title="Silenciar el micrófono de este loop">MUTE</button>
           </div>
         </div>
       </div>
@@ -1627,11 +1646,13 @@
             </div>
           </div>
           <div class="fader-containerloop">
+            <button type="button" id="loopMenuBtn2" class="loop-menu-btn mappable" aria-label="Entradas y envíos Loop 2" title="Entradas y envíos">&#8943;</button>
             <label for="loopVolume2" class="sr-only" id="loopVolume2Label">Volumen Loop 2</label>
             <input type="range" id="loopVolume2" min="0" max="1" step="0.01" value="1" orient="vertical" class="mappable">
             <input type="number" id="loopVolume2ValueInput" class="fader-value-input" min="0" max="1" step="0.01" value="1" aria-labelledby="loopVolume2Label">
           </div>
         </div>
+        <div id="loopMenuPanel2" class="loop-menu-panel"></div>
         <div class="loop-controls">
           <div>
             <label for="speedControl2" id="speedControl2Label">Velocidad:</label>
@@ -1642,6 +1663,7 @@
             <button id="reverseBtn2" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 2">REV</button>
             <button id="loopPlayPauseBtn2" type="button" class="mappable">Play</button>
             <button id="flexPitchBtn2" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 2">FLEX</button>
+            <button id="muteBtn2" class="loop-action-btn mappable" aria-pressed="false" aria-label="Mute micrófono Loop 2" title="Silenciar el micrófono de este loop">MUTE</button>
           </div>
         </div>
       </div>
@@ -1661,11 +1683,13 @@
             </div>
           </div>
           <div class="fader-containerloop">
+            <button type="button" id="loopMenuBtn3" class="loop-menu-btn mappable" aria-label="Entradas y envíos Loop 3" title="Entradas y envíos">&#8943;</button>
             <label for="loopVolume3" class="sr-only" id="loopVolume3Label">Volumen Loop 3</label>
             <input type="range" id="loopVolume3" min="0" max="1" step="0.01" value="1" orient="vertical" class="mappable">
             <input type="number" id="loopVolume3ValueInput" class="fader-value-input" min="0" max="1" step="0.01" value="1" aria-labelledby="loopVolume3Label">
           </div>
         </div>
+        <div id="loopMenuPanel3" class="loop-menu-panel"></div>
         <div class="loop-controls">
           <div>
             <label for="speedControl3" id="speedControl3Label">Velocidad:</label>
@@ -1676,6 +1700,7 @@
             <button id="reverseBtn3" class="loop-action-btn mappable" aria-pressed="false" aria-label="Reversa Loop 3">REV</button>
             <button id="loopPlayPauseBtn3" type="button" class="mappable">Play</button>
             <button id="flexPitchBtn3" class="loop-action-btn mappable" aria-pressed="false" aria-label="Flex Pitch Loop 3">FLEX</button>
+            <button id="muteBtn3" class="loop-action-btn mappable" aria-pressed="false" aria-label="Mute micrófono Loop 3" title="Silenciar el micrófono de este loop">MUTE</button>
           </div>
         </div>
       </div>
@@ -1932,7 +1957,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (easyModeSourceToggleBtn) {
         easyModeSourceToggleBtn.addEventListener('click', () => {
-            document.getElementById('sourceToggleButton')?.click();
+            if (window.__loopApi) window.__loopApi.toggleActiveMic();
         });
     }
     
@@ -1947,11 +1972,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (easyModeMicSelect) {
         easyModeMicSelect.addEventListener('change', (e) => {
-            const mainMicSelect = document.getElementById('micSelect');
-            if (mainMicSelect) {
-                mainMicSelect.value = e.target.value;
-                mainMicSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            }
+            if (window.__loopApi) window.__loopApi.setActiveMicDevice(e.target.value);
         });
     }
 
@@ -2310,6 +2331,13 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
 
     // OPTIMIZACIÓN DE LOOPS: Buffers dedicados
     let loopDedicatedBuffers = [null, null, null];
+    // --- Fuente propia de cada loop (el buffer master se mantiene para granulador/espectro/grabación) ---
+    let loopSrcBuf = [null, null, null];
+    let loopSrcId = [0, 0, 0];
+    let loopFileNames = ['', '', ''];
+    let activeLoopIndex = 0;
+    let loopFilePicker = null, loopPickerTarget = -1;
+    const loopMics = [0, 1, 2].map(() => ({ on: false, muted: false, deviceId: '', ch: 0, stream: null, src: null, splitter: null, gain: null, rec: null, sc: null, starting: false }));
     let loopReversedBuffersCache = [null, null, null]; // Cache para buffers invertidos
 
     let flexPitchCache = [{}, {}, {}];
@@ -2569,6 +2597,13 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                 audioBlobs.push(wavBlob);
                 toc.parts.push({ name: 'mainRecorderAudioBuffer', type: 'audio/wav', size: wavBlob.size });
             }
+            for (let k = 0; k < 3; k++) {
+                if (loopSrcBuf[k]) {
+                    const lwav = audioBufferToWavBlob(loopSrcBuf[k]);
+                    audioBlobs.push(lwav);
+                    toc.parts.push({ name: 'loopSourceBuffer' + k, type: 'audio/wav', size: lwav.size });
+                }
+            }
             if (masterRecordedAudioBuffer) {
                 const wavBlob = audioBufferToWavBlob(masterRecordedAudioBuffer);
                 audioBlobs.push(wavBlob);
@@ -2658,7 +2693,11 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                     const decodedMainBuffer = audioBuffers['mainRecorderAudioBuffer'] || null;
 
                     
-                    updateLoopAndGranulatorWithNewBuffer(decodedMainBuffer); 
+                    {
+                        const anyLoopPart = [0, 1, 2].some(k => audioBuffers['loopSourceBuffer' + k]);
+                        for (let k = 0; k < 3; k++) setLoopSourceBuffer(k, anyLoopPart ? (audioBuffers['loopSourceBuffer' + k] || null) : decodedMainBuffer, '');
+                        setMasterBuffer(decodedMainBuffer);
+                    }
                     
                     masterRecordedAudioBuffer = audioBuffers['masterRecordedAudioBuffer'] || null;
 
@@ -3765,6 +3804,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         
         const setupAndStartRecording = (mode) => {
             if (!audioContext) return;
+            if (!loopMics[activeLoopIndex].on) { setLoopMicEnabled(activeLoopIndex, true).then(ok => { if (ok) setupAndStartRecording(mode); }); return; }
             if (audioContext.state === 'suspended') audioContext.resume();
 
             if (!isRecorderSetup) {
@@ -3789,8 +3829,8 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         };
 
         if (recordBtn) recordBtn.addEventListener('click', () => setupAndStartRecording("record"));
-        if (appendRecBtn) appendRecBtn.addEventListener('click', () => { if(mainRecorderAudioBuffer) setupAndStartRecording("append"); });
-        if (overdubNowBtn) overdubNowBtn.addEventListener('click', () => { if(mainRecorderAudioBuffer) setupAndStartRecording("overdub"); });
+        if (appendRecBtn) appendRecBtn.addEventListener('click', () => { if(loopSrcBuf[activeLoopIndex]) setupAndStartRecording("append"); });
+        if (overdubNowBtn) overdubNowBtn.addEventListener('click', () => { if(loopSrcBuf[activeLoopIndex]) setupAndStartRecording("overdub"); });
         
         if (playPauseBtn) playPauseBtn.addEventListener('click', togglePlayPauseFilePlayer);
         const maxChannels = 8;
@@ -3911,6 +3951,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
             }
         });
         
+        initLoopSources();
         attachLoopCanvasEventsAll();
         setupGlobalKeyListeners();
         setupSidechainEventListeners();
@@ -4048,10 +4089,8 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         analyserWet.connect(finalOutputGain);
         
         gainNode.connect(recordSourceMixer);
-        micBooster.connect(recordSourceMixer);
 
         gainNode.connect(sourceSidechainSendGain);
-        micBooster.connect(sourceSidechainSendGain);
         sourceSidechainSendGain.connect(sidechainSummingGain);
         loopVolumeGains.forEach((loopVolGain, i) => { if (loopVolGain && loopSidechainSendGains[i]) loopVolGain.connect(loopSidechainSendGains[i]); });
         loopSidechainSendGains.forEach(scSendGain => { if (scSendGain && sidechainSummingGain) scSendGain.connect(sidechainSummingGain); });
@@ -4070,6 +4109,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         const file = event.target.files[0];
         if (!file) return;
         loadedAudioFileName = file.name; // Guardar el nombre del archivo
+        loadFileIntoLoop(activeLoopIndex, file); event.target.value = ''; return;
         const reader = new FileReader();
         reader.onload = function(e_reader) { processArrayBuffer(e_reader.target.result, false); };
         reader.onerror = function() { if (loaderOverlay) loaderOverlay.classList.add('hidden'); alert("Error al leer archivo."); drawInitialMessage("Error al leer archivo."); };
@@ -4099,9 +4139,9 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                 startReverbSystemWithBuffer(audioBuffer);
                 if (loaderOverlay) loaderOverlay.classList.add('hidden');
 
-                if (document.body.classList.contains('easy-mode-active') || isInitial) {
-                    updateLoopAndGranulatorWithNewBuffer(decodedBuffer);
-                    drawMainRecordedWaveform();
+                if (isInitial) {
+                    for (let k = 0; k < 3; k++) setLoopSourceBuffer(k, k === 0 ? decodedBuffer : cloneAudioBuffer(decodedBuffer), 'Output 1-2.wav');
+                    setActiveLoop(activeLoopIndex);
                 }
                 
                 if (isInitial) {
@@ -4334,6 +4374,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
     }
     function toggleSourcePanels() { if (micPanel) micPanel.style.display = window.currentAudioSourceType === 'mic' ? 'block' : 'none'; if (filePanel) filePanel.style.display = window.currentAudioSourceType === 'file' ? 'block' : 'none'; updateSourceButtonUIAfterDOMChange(); }
     async function handleSourceChange() {
+        return; // Reemplazado: cada loop gestiona su propia entrada (menú de tres puntos)
         stopCurrentAudioSourceLogic();
         toggleSourcePanels();
         if (window.currentAudioSourceType === 'mic') {
@@ -4380,14 +4421,14 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                     loadedAudioFileName = "Grabación en vivo";
                 }
                 else if (currentRecordingMode === "append") {
-                    const oldDuration = mainRecorderAudioBuffer ? mainRecorderAudioBuffer.duration : 0;
-                    const absoluteLoopSelections = loopSelections.map(sel => ({ start: sel.start * oldDuration, end: sel.end * oldDuration }));
-                    resultingBuffer = mainRecorderAudioBuffer ? appendAudioBuffers(mainRecorderAudioBuffer, decodedAudioBuffer, audioContext) : decodedAudioBuffer;
+                    const oldDuration = loopSrcBuf[activeLoopIndex] ? loopSrcBuf[activeLoopIndex].duration : 0;
+                    const absSel = { start: loopSelections[activeLoopIndex].start * oldDuration, end: loopSelections[activeLoopIndex].end * oldDuration };
+                    resultingBuffer = loopSrcBuf[activeLoopIndex] ? appendAudioBuffers(loopSrcBuf[activeLoopIndex], decodedAudioBuffer, audioContext) : decodedAudioBuffer;
                     const newDuration = resultingBuffer.duration;
-                    if (newDuration > 0) { loopSelections = absoluteLoopSelections.map(absSel => ({ start: absSel.start / newDuration, end: absSel.end / newDuration })); }
+                    if (newDuration > 0) { loopSelections[activeLoopIndex] = { start: absSel.start / newDuration, end: absSel.end / newDuration }; }
                     loadedAudioFileName = "Grabación (Append)";
                 } else if (currentRecordingMode === "overdub") { 
-                    resultingBuffer = mainRecorderAudioBuffer ? mixAudioBuffers(mainRecorderAudioBuffer, decodedAudioBuffer, audioContext) : decodedAudioBuffer; 
+                    resultingBuffer = loopSrcBuf[activeLoopIndex] ? mixAudioBuffers(loopSrcBuf[activeLoopIndex], decodedAudioBuffer, audioContext) : decodedAudioBuffer; 
                     loadedAudioFileName = "Grabación (Overdub)";
                 }
                 updateLoopAndGranulatorWithNewBuffer(resultingBuffer);
@@ -4406,7 +4447,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         const isRecorderActive = mainAudioRecorder && mainAudioRecorder.state === "recording"; 
         recordBtn.disabled = isRecorderActive; 
         stopRecBtn.disabled = !isRecorderActive; 
-        const hasRecording = !!mainRecorderAudioBuffer; 
+        const hasRecording = !!loopSrcBuf[activeLoopIndex]; 
         appendRecBtn.disabled = isRecorderActive || !hasRecording; 
         overdubNowBtn.disabled = isRecorderActive || !hasRecording;
         
@@ -4874,8 +4915,8 @@ function stopSidechainEnvelopeProcessing() {
         ctx.fillStyle = styles.backgroundColor || 'var(--casilla-bg-color)';
         ctx.fillRect(0, 0, width, height);
 
-        if (mainRecorderAudioBuffer && mainRecorderAudioBuffer.duration > 0) {
-            const channelData = mainRecorderAudioBuffer.getChannelData(0);
+        if (loopSrcBuf[loopIndex] && loopSrcBuf[loopIndex].duration > 0) {
+            const channelData = loopSrcBuf[loopIndex].getChannelData(0);
             const zoom = loopZoomLevels[loopIndex];
             const panOffsetNormalized = loopPanOffsets[loopIndex];
             const totalBufferFrames = channelData.length;
@@ -5014,7 +5055,7 @@ function stopSidechainEnvelopeProcessing() {
 
         canvas.addEventListener('contextmenu', e => {
             e.preventDefault();
-            if (!mainRecorderAudioBuffer || isMidiMapping) return;
+            if (!loopSrcBuf[loopIndex] || isMidiMapping) return;
 
             const { xOnCanvas, rect } = getMousePosInfo(e);
             const selection = loopSelections[loopIndex];
@@ -5034,7 +5075,7 @@ function stopSidechainEnvelopeProcessing() {
         });
 
         canvas.addEventListener('mousedown', (e) => {
-            if (!mainRecorderAudioBuffer || e.button !== 0 || isMidiMapping) return;
+            if (!loopSrcBuf[loopIndex] || e.button !== 0 || isMidiMapping) return;
 
             const { posInBufferNormalized } = getMousePosInfo(e);
             
@@ -5112,7 +5153,7 @@ function stopSidechainEnvelopeProcessing() {
                         loopSelections[loopIndex].end = loopSelections[loopIndex].start + 0.001;
                     }
                     
-                    if (mainRecorderAudioBuffer) {
+                    if (loopSrcBuf[loopIndex]) {
                         loopFlexPendingKeys[loopIndex] = {};
                         rebuildLoopDedicatedBuffer(loopIndex);
                         console.log(`Buffer dedicado creado para el loop ${loopIndex + 1}.`);
@@ -5137,7 +5178,7 @@ function stopSidechainEnvelopeProcessing() {
         });
         
         canvas.addEventListener('wheel', (e) => {
-            if (!mainRecorderAudioBuffer) return;
+            if (!loopSrcBuf[loopIndex]) return;
             e.preventDefault();
             const zoomFactor = 1.2;
             const { xInViewNormalized } = getMousePosInfo(e);
@@ -5152,7 +5193,7 @@ function stopSidechainEnvelopeProcessing() {
     }
 
     function handleLoopZoom(loopIndex, newZoom, zoomOriginInViewNormalized = 0.5) {
-        if (!mainRecorderAudioBuffer) return;
+        if (!loopSrcBuf[loopIndex]) return;
         const oldZoom = loopZoomLevels[loopIndex];
         newZoom = Math.max(1, Math.min(newZoom, 100));
         loopZoomLevels[loopIndex] = newZoom;
@@ -5174,7 +5215,7 @@ function stopSidechainEnvelopeProcessing() {
     }
 
     function handleLoopPan(loopIndex, newPanAttempt) {
-        if (!mainRecorderAudioBuffer || loopZoomLevels[loopIndex] <= 1) return;
+        if (!loopSrcBuf[loopIndex] || loopZoomLevels[loopIndex] <= 1) return;
         const zoom = loopZoomLevels[loopIndex];
         const visiblePortion = 1 / zoom;
         const maxPan = 1 - visiblePortion;
@@ -5199,43 +5240,274 @@ function stopSidechainEnvelopeProcessing() {
         }
     }
     
-    function updateLoopAndGranulatorWithNewBuffer(audioBuf) {
-        mainRecorderAudioBuffer = audioBuf;
+    function cloneAudioBuffer(buf) {
+        if (!buf || !audioContext) return buf;
+        const c = audioContext.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+        for (let ch = 0; ch < buf.numberOfChannels; ch++) c.getChannelData(ch).set(buf.getChannelData(ch));
+        return c;
+    }
+    function setMasterBuffer(buf) {
+        mainRecorderAudioBuffer = buf || null;
         mainRecorderAudioBufferId++;
-
-        // Cualquier loop que estuviera sonando con el buffer anterior se detiene
-        for (let i = 0; i < 3; i++) {
-            if (isLoopRealtimePlaying[i]) stopLoopRealtimePlayback(i);
-        }
-
-        loopDedicatedBuffers = [null, null, null];
-        loopReversedBuffersCache = [null, null, null];
-        flexPitchCache = [{}, {}, {}];
-        loopFlexPendingKeys = [{}, {}, {}];
-
-        for (let i = 0; i < loopSelections.length; i++) {
-            loopZoomLevels[i] = 1;
-            loopPanOffsets[i] = 0;
-            sampleSelections[i] = { start: 0, end: 0 };
-            loopFades[i] = { fadeIn: 0.0, fadeOut: 0.0, dragging: null };
-
-            // DEFAULT: si no hay una región marcada, la selección es el buffer
-            // COMPLETO (0..1) y su buffer dedicado se crea ya mismo, para que
-            // Play funcione sin pedir que se seleccione nada.
-            const sel = loopSelections[i];
-            if (!sel || !isFinite(sel.start) || !isFinite(sel.end) || (sel.end - sel.start) <= 0.0005) {
-                loopSelections[i] = { start: 0, end: 1 };
-            }
-            ensureLoopDedicatedBuffer(i);
-
-            if (loopCanvases[i]) {
-                loopCanvases[i].style.cursor = 'crosshair';
-                drawLoopWaveformVisuals(i);
-            }
-        }
-        loopPlayPauseBtns.forEach(btn => { if(btn) btn.disabled = !mainRecorderAudioBuffer; });
         if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer;
         if (spectralSynthPowerSwitch) spectralSynthPowerSwitch.disabled = !mainRecorderAudioBuffer;
+        enableRecordingButtons();
+        if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer);
+    }
+    function setLoopSourceBuffer(i, buf, fileName) {
+        if (isLoopRealtimePlaying[i]) stopLoopRealtimePlayback(i);
+        loopSrcBuf[i] = buf || null;
+        loopSrcId[i]++;
+        if (fileName !== undefined) loopFileNames[i] = fileName || '';
+        loopDedicatedBuffers[i] = null;
+        loopReversedBuffersCache[i] = null;
+        flexPitchCache[i] = {};
+        loopFlexPendingKeys[i] = {};
+        loopZoomLevels[i] = 1;
+        loopPanOffsets[i] = 0;
+        sampleSelections[i] = { start: 0, end: 0 };
+        loopFades[i] = { fadeIn: 0.0, fadeOut: 0.0, dragging: null };
+        const sel = loopSelections[i];
+        if (!sel || !isFinite(sel.start) || !isFinite(sel.end) || (sel.end - sel.start) <= 0.0005) loopSelections[i] = { start: 0, end: 1 };
+        if (buf) ensureLoopDedicatedBuffer(i);
+        if (loopCanvases[i]) { loopCanvases[i].style.cursor = 'crosshair'; drawLoopWaveformVisuals(i); }
+        if (loopPlayPauseBtns[i]) loopPlayPauseBtns[i].disabled = !buf;
+        updateLoopMenuUI(i);
+        if (i === activeLoopIndex) setMasterBuffer(buf);
+    }
+    // Grabaciones, append, overdub y clear actúan sobre el loop activo
+    function updateLoopAndGranulatorWithNewBuffer(audioBuf) {
+        setLoopSourceBuffer(activeLoopIndex, audioBuf, audioBuf ? (loadedAudioFileName || 'Grabación') : '');
+    }
+    function setActiveLoop(i) {
+        if (i < 0 || i > 2) return;
+        activeLoopIndex = i;
+        loopCanvases.forEach((c, k) => { const g = c && c.closest('.loop-visualizer-group'); if (g) g.classList.toggle('loop-active', k === i); });
+        loopMics.forEach((m, k) => { if (m.rec && audioContext) m.rec.gain.setTargetAtTime(k === i ? 1 : 0, audioContext.currentTime, 0.01); });
+        if (loopSrcBuf[i]) setMasterBuffer(loopSrcBuf[i]); else enableRecordingButtons();
+        syncEasyModeSourceUI();
+    }
+    function syncEasyModeSourceUI() {
+        window.currentAudioSourceType = loopMics[activeLoopIndex].on ? 'mic' : 'file';
+        updateSourceButtonUIAfterDOMChange();
+    }
+    function handleShiftLoopKey(i) {
+        if (mainAudioRecorder && mainAudioRecorder.state === 'recording' && i !== activeLoopIndex) return;
+        if (i !== activeLoopIndex) { setActiveLoop(i); if (!loopMics[i].on) setLoopMicEnabled(i, true); }
+        else toggleLoopMic(i);
+    }
+
+    // ---------- Archivos por loop ----------
+    async function loadFileIntoLoop(i, file) {
+        if (!file || !audioContext) return;
+        if (!/^audio\//.test(file.type) && !/\.(wav|mp3|ogg|m4a|flac|aac|webm)$/i.test(file.name)) { alert('Arrastra un archivo de audio WAV o MP3.'); return; }
+        try {
+            if (audioContext.state === 'suspended') await audioContext.resume();
+            const buf = await audioContext.decodeAudioData(await file.arrayBuffer());
+            loopSelections[i] = { start: 0, end: 1 };
+            loadedAudioFileName = file.name;
+            setLoopSourceBuffer(i, buf, file.name);
+        } catch (err) { console.error('Error cargando archivo en loop', i + 1, err); alert('No se pudo decodificar el archivo de audio.'); }
+    }
+    function pickFileForLoop(i) {
+        if (!loopFilePicker) return;
+        loopPickerTarget = i;
+        loopFilePicker.value = '';
+        loopFilePicker.click();
+    }
+
+    // ---------- Micrófono por loop ----------
+    function ensureLoopMicNodes(i) {
+        const m = loopMics[i];
+        if (m.gain || !audioContext) return;
+        m.gain = audioContext.createGain(); m.gain.gain.value = 0;
+        m.rec = audioContext.createGain(); m.rec.gain.value = (i === activeLoopIndex) ? 1 : 0;
+        m.sc = audioContext.createGain(); m.sc.gain.value = (loopSidechainSendSwitches[i] && loopSidechainSendSwitches[i].checked) ? 1 : 0;
+        m.gain.connect(micBooster); m.gain.connect(m.rec); m.gain.connect(m.sc);
+        if (recordSourceMixer) m.rec.connect(recordSourceMixer);
+        if (sidechainSummingGain) m.sc.connect(sidechainSummingGain);
+    }
+    function applyLoopMicGain(i) {
+        const m = loopMics[i];
+        if (!m.gain || !audioContext) return;
+        let v = (m.on && !m.muted) ? parseFloat(loopVolumeFaders[i] ? loopVolumeFaders[i].value : 1) : 0;
+        if (!isFinite(v)) v = 1;
+        m.gain.gain.setTargetAtTime(v, audioContext.currentTime, 0.01);
+    }
+    function stopLoopMicStream(i) {
+        const m = loopMics[i];
+        try { if (m.src) m.src.disconnect(); } catch (e) {}
+        try { if (m.splitter) m.splitter.disconnect(); } catch (e) {}
+        if (m.stream) m.stream.getTracks().forEach(t => t.stop());
+        m.stream = null; m.src = null; m.splitter = null;
+    }
+    function fillLoopMicChannels(i, n) {
+        const sel = document.querySelector('#loopMenuPanel' + (i + 1) + ' [data-act="ch"]');
+        if (!sel) return;
+        sel.innerHTML = '';
+        for (let c = 0; c < n; c++) sel.appendChild(new Option('Canal ' + (c + 1), c));
+        sel.value = String(loopMics[i].ch);
+        sel.disabled = n < 2;
+    }
+    async function fillLoopMicDeviceLists() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        try {
+            const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+            for (let i = 0; i < 3; i++) {
+                const sel = document.querySelector('#loopMenuPanel' + (i + 1) + ' [data-act="dev"]');
+                if (!sel) continue;
+                sel.innerHTML = '';
+                sel.appendChild(new Option('Predeterminado', ''));
+                devs.forEach((d, k) => { if (d.deviceId && d.deviceId !== 'default') sel.appendChild(new Option(d.label || ('Micrófono ' + (k + 1)), d.deviceId)); });
+                sel.value = loopMics[i].deviceId;
+            }
+        } catch (err) { console.error('Error al listar dispositivos de entrada:', err); }
+    }
+    async function setLoopMicEnabled(i, on) {
+        const m = loopMics[i];
+        if (!audioContext) return false;
+        if (!on) { stopLoopMicStream(i); m.on = false; applyLoopMicGain(i); updateLoopMenuUI(i); if (i === activeLoopIndex) syncEasyModeSourceUI(); return true; }
+        if (m.on) return true;
+        if (m.starting) return false;
+        m.starting = true;
+        try {
+            if (audioContext.state === 'suspended') await audioContext.resume();
+            ensureLoopMicNodes(i);
+            const constraints = { audio: { deviceId: m.deviceId ? { exact: m.deviceId } : undefined, channelCount: { ideal: 8 }, echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false };
+            m.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            m.src = audioContext.createMediaStreamSource(m.stream);
+            m.splitter = audioContext.createChannelSplitter(8);
+            m.src.connect(m.splitter);
+            const n = m.src.channelCount || 1;
+            if (m.ch >= n) m.ch = 0;
+            m.splitter.connect(m.gain, m.ch, 0);
+            m.on = true;
+            fillLoopMicChannels(i, n);
+            fillLoopMicDeviceLists();
+            applyLoopMicGain(i);
+            return true;
+        } catch (err) {
+            stopLoopMicStream(i); m.on = false;
+            alert('Error al iniciar el micrófono del Loop ' + (i + 1) + ': ' + (err && err.message ? err.message : err));
+            return false;
+        } finally {
+            m.starting = false;
+            updateLoopMenuUI(i);
+            if (i === activeLoopIndex) syncEasyModeSourceUI();
+        }
+    }
+    function toggleLoopMic(i) { return setLoopMicEnabled(i, !loopMics[i].on); }
+    async function restartLoopMicIfOn(i) {
+        if (!loopMics[i].on) return;
+        await setLoopMicEnabled(i, false);
+        await setLoopMicEnabled(i, true);
+    }
+    function toggleLoopMicMute(i) {
+        loopMics[i].muted = !loopMics[i].muted;
+        updateLoopMenuUI(i);
+        applyLoopMicGain(i);
+    }
+
+    // ---------- Envíos de audio ----------
+    function sendLoopAudio(i, target) {
+        const srcBuf = loopSrcBuf[i];
+        if (!srcBuf) { alert('El Loop ' + (i + 1) + ' no tiene audio para enviar.'); return; }
+        const toLoop = (k) => setLoopSourceBuffer(k, cloneAudioBuffer(srcBuf), loopFileNames[i]);
+        if (target === 'gran' || target === 'spec') setMasterBuffer(srcBuf);
+        else if (target === 'all') { [0, 1, 2].filter(k => k !== i).forEach(toLoop); setMasterBuffer(srcBuf); }
+        else if (target.indexOf('loop') === 0) toLoop(parseInt(target.slice(4), 10));
+    }
+
+    // ---------- Interfaz del menú de cada loop ----------
+    function updateLoopMenuUI(i) {
+        const m = loopMics[i], n = i + 1;
+        const menuBtn = document.getElementById('loopMenuBtn' + n);
+        if (menuBtn) menuBtn.classList.toggle('mic-on', m.on);
+        const muteBtn = document.getElementById('muteBtn' + n);
+        if (muteBtn) muteBtn.setAttribute('aria-pressed', String(m.muted));
+        const panel = document.getElementById('loopMenuPanel' + n);
+        if (!panel) return;
+        const micBtn = panel.querySelector('[data-act="mic"]');
+        if (micBtn) { micBtn.textContent = m.on ? 'MIC ON' : 'MIC OFF'; micBtn.classList.toggle('on', m.on); }
+        const fn = panel.querySelector('[data-role="fname"]');
+        if (fn) fn.textContent = loopFileNames[i] || (loopSrcBuf[i] ? 'Audio sin nombre' : 'Sin audio');
+    }
+    function initLoopSources() {
+        loopFilePicker = document.createElement('input');
+        loopFilePicker.type = 'file'; loopFilePicker.accept = 'audio/*,.wav,.mp3'; loopFilePicker.style.display = 'none';
+        document.body.appendChild(loopFilePicker);
+        loopFilePicker.addEventListener('change', () => {
+            const f = loopFilePicker.files && loopFilePicker.files[0];
+            if (f && loopPickerTarget >= 0) loadFileIntoLoop(loopPickerTarget, f);
+            loopFilePicker.value = '';
+        });
+        for (let i = 0; i < 3; i++) {
+            const n = i + 1, canvas = loopCanvases[i], panel = document.getElementById('loopMenuPanel' + n), menuBtn = document.getElementById('loopMenuBtn' + n);
+            if (!canvas || !panel || !menuBtn) continue;
+            const others = [0, 1, 2].filter(k => k !== i);
+            panel.innerHTML =
+                '<div class="loop-menu-row head"><span>Loop ' + n + ' · entradas y envíos</span><button type="button" data-act="close" aria-label="Cerrar menú">&#8943; cerrar</button></div>' +
+                '<div class="loop-menu-row"><button type="button" data-act="mic">MIC OFF</button><select data-act="dev" aria-label="Dispositivo de entrada"><option value="">Predeterminado</option></select><select data-act="ch" aria-label="Canal de entrada"><option value="0">Canal 1</option></select></div>' +
+                '<div class="loop-menu-row"><button type="button" data-act="file">Archivo…</button><span class="loop-file-name" data-role="fname">Sin audio</span></div>' +
+                '<div class="loop-menu-row"><span>Enviar a:</span>' + others.map(k => '<button type="button" data-send="loop' + k + '">Loop ' + (k + 1) + '</button>').join('') +
+                '<button type="button" data-send="gran">Granular</button><button type="button" data-send="spec">Espectro</button><button type="button" data-send="all">Todo</button></div>';
+            menuBtn.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.add('open'); });
+            panel.addEventListener('click', (e) => {
+                const b = e.target.closest('button'); if (!b) return;
+                if (b.dataset.act === 'close') panel.classList.remove('open');
+                else if (b.dataset.act === 'mic') toggleLoopMic(i);
+                else if (b.dataset.act === 'file') pickFileForLoop(i);
+                else if (b.dataset.send) sendLoopAudio(i, b.dataset.send);
+            });
+            panel.addEventListener('change', (e) => {
+                const t = e.target;
+                if (t.dataset.act === 'dev') { loopMics[i].deviceId = t.value; restartLoopMicIfOn(i); }
+                else if (t.dataset.act === 'ch') {
+                    loopMics[i].ch = parseInt(t.value, 10) || 0;
+                    const m = loopMics[i];
+                    if (m.on && m.splitter && m.gain) { try { m.splitter.disconnect(); m.splitter.connect(m.gain, m.ch, 0); } catch (err) { console.error(err); } }
+                }
+                if (t.blur) t.blur();
+            });
+            const muteBtn = document.getElementById('muteBtn' + n);
+            if (muteBtn) muteBtn.addEventListener('click', () => toggleLoopMicMute(i));
+            // Arrastrar y soltar WAV/MP3 sobre el gráfico (o sobre el menú abierto)
+            [canvas, panel].forEach(el => {
+                el.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; canvas.classList.add('drag-over'); });
+                el.addEventListener('dragleave', () => canvas.classList.remove('drag-over'));
+                el.addEventListener('drop', (e) => {
+                    e.preventDefault(); e.stopPropagation(); canvas.classList.remove('drag-over');
+                    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+                    if (f) loadFileIntoLoop(i, f);
+                });
+            });
+            // Doble clic abre el selector; se restaura la región que el primer clic hubiera cambiado
+            let lastDown = 0, preSel = null;
+            canvas.addEventListener('mousedown', () => { const now = performance.now(); if (now - lastDown > 450) preSel = { start: loopSelections[i].start, end: loopSelections[i].end }; lastDown = now; }, true);
+            canvas.addEventListener('dblclick', () => {
+                if (isMidiMapping) return;
+                if (preSel && loopSrcBuf[i]) {
+                    loopSelections[i] = { start: preSel.start, end: preSel.end };
+                    rebuildLoopDedicatedBuffer(i);
+                    if (isLoopRealtimePlaying[i]) restartLoopSegmentFromStart(i);
+                    drawLoopWaveformVisuals(i);
+                }
+                pickFileForLoop(i);
+            });
+            // Controles unificados: el sidechain y el volumen del loop también gobiernan su micrófono
+            if (loopSidechainSendSwitches[i]) loopSidechainSendSwitches[i].addEventListener('change', (e) => {
+                if (loopMics[i].sc && audioContext) loopMics[i].sc.gain.setTargetAtTime(e.target.checked ? 1 : 0, audioContext.currentTime, 0.01);
+            });
+            if (loopVolumeFaders[i]) loopVolumeFaders[i].addEventListener('input', () => applyLoopMicGain(i));
+            updateLoopMenuUI(i);
+        }
+        fillLoopMicDeviceLists();
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', fillLoopMicDeviceLists);
+        window.__loopApi = {
+            toggleActiveMic: () => toggleLoopMic(activeLoopIndex),
+            setActiveMicDevice: (id) => { loopMics[activeLoopIndex].deviceId = id || ''; fillLoopMicDeviceLists(); restartLoopMicIfOn(activeLoopIndex); }
+        };
+        setActiveLoop(0);
     }
 
     function extractAudioBufferSegment(originalBuffer, startNormalized, endNormalized, ctx) {
@@ -5307,7 +5579,7 @@ function stopSidechainEnvelopeProcessing() {
 
     function makeLoopFlexCacheKey(loopIndex, isReversed, speed) {
         const sel = loopSelections[loopIndex] || { start: 0, end: 1 };
-        return `${loopIndex}_${mainRecorderAudioBufferId}_s${sel.start.toFixed(4)}_e${sel.end.toFixed(4)}_r${isReversed}_v${speed.toFixed(2)}`;
+        return `${loopIndex}_${loopSrcId[loopIndex]}_s${sel.start.toFixed(4)}_e${sel.end.toFixed(4)}_r${isReversed}_v${speed.toFixed(2)}`;
     }
 
     function getCurrentLoopFlexCacheKey(loopIndex) {
@@ -5319,7 +5591,7 @@ function stopSidechainEnvelopeProcessing() {
     function ensureLoopDedicatedBuffer(loopIndex) {
         if (loopDedicatedBuffers[loopIndex]) return true;
         if (!audioContext) return false;
-        if (!mainRecorderAudioBuffer || mainRecorderAudioBuffer.duration <= 0) return false;
+        if (!loopSrcBuf[loopIndex] || loopSrcBuf[loopIndex].duration <= 0) return false;
 
         let sel = loopSelections[loopIndex];
         if (!sel || !isFinite(sel.start) || !isFinite(sel.end) || (sel.end - sel.start) <= 0.0005) {
@@ -5327,7 +5599,7 @@ function stopSidechainEnvelopeProcessing() {
             loopSelections[loopIndex] = sel;
         }
         loopDedicatedBuffers[loopIndex] = extractAudioBufferSegment(
-            mainRecorderAudioBuffer, sel.start, sel.end, audioContext
+            loopSrcBuf[loopIndex], sel.start, sel.end, audioContext
         );
         loopReversedBuffersCache[loopIndex] = null;
         flexPitchCache[loopIndex] = {};
@@ -5871,11 +6143,11 @@ function stopSidechainEnvelopeProcessing() {
 
     loopPlayPauseBtns.forEach((btn, i) => {
         if (!btn) return;
-        btn.disabled = !mainRecorderAudioBuffer;
+        btn.disabled = !loopSrcBuf[i];
         btn.addEventListener('click', () => {
             // DEFAULT: si no hay región marcada se usa el buffer completo.
             if (!ensureLoopDedicatedBuffer(i)) {
-                alert("Primero carga o graba audio en el buffer principal.");
+                alert("Primero arrastra un archivo al gráfico de este loop o graba con el micrófono.");
                 return;
             }
             if (!isLoopRealtimePlaying[i]) {
@@ -6500,7 +6772,7 @@ function stopSidechainEnvelopeProcessing() {
     }
     
     function triggerSampleOn(loopIndex) {
-        if (!mainRecorderAudioBuffer || activeSamplers[loopIndex]) return;
+        if (!loopSrcBuf[loopIndex] || activeSamplers[loopIndex]) return;
 
         const selection = sampleSelections[loopIndex];
         if (selection.start >= selection.end) return;
@@ -6509,7 +6781,7 @@ function stopSidechainEnvelopeProcessing() {
         const currentSpeed = loopSpeedControls[loopIndex] ? parseFloat(loopSpeedControls[loopIndex].value) : 1;
         const useFlexPitch = loopFlexPitchBtns[loopIndex] ? loopFlexPitchBtns[loopIndex].getAttribute('aria-pressed') === 'true' : false;
 
-        let segment = extractAudioBufferSegment(mainRecorderAudioBuffer, selection.start, selection.end, audioContext);
+        let segment = extractAudioBufferSegment(loopSrcBuf[loopIndex], selection.start, selection.end, audioContext);
         if (!segment) return;
 
         if (isReversed) {
@@ -6521,7 +6793,7 @@ function stopSidechainEnvelopeProcessing() {
         let finalPlaybackRate = currentSpeed;
 
         if (useFlexPitch && currentSpeed !== 1.0 && audioWorker) {
-            const cacheKey = `${loopIndex}_${mainRecorderAudioBufferId}_sample_s${selection.start.toFixed(4)}_e${selection.end.toFixed(4)}_r${isReversed}_v${currentSpeed.toFixed(2)}`;
+            const cacheKey = `${loopIndex}_${loopSrcId[loopIndex]}_sample_s${selection.start.toFixed(4)}_e${selection.end.toFixed(4)}_r${isReversed}_v${currentSpeed.toFixed(2)}`;
             if(flexPitchCache[loopIndex] && flexPitchCache[loopIndex][cacheKey]){
                 bufferToPlay = flexPitchCache[loopIndex][cacheKey];
                 finalPlaybackRate = 1.0;
@@ -6779,15 +7051,18 @@ function stopSidechainEnvelopeProcessing() {
             
             const key = e.key;
 
+            if (e.shiftKey && /^Digit[1-3]$/.test(e.code)) { e.preventDefault(); handleShiftLoopKey(parseInt(e.code.slice(5), 10) - 1); return; }
+
             if (key === 'Backspace') {
                 e.preventDefault();
                 if (undoDrawingBtn) undoDrawingBtn.click();
                 return;
             }
             
-            if(e.code==='Space' && playPauseBtn){
+            if(e.code==='Space'){
                 e.preventDefault();
-                playPauseBtn.click();
+                const lp = loopPlayPauseBtns[activeLoopIndex];
+                if (lp && !lp.disabled) lp.click();
                 return;
             }
 
