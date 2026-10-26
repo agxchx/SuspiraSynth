@@ -2336,6 +2336,8 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
     let loopSrcId = [0, 0, 0];
     let loopFileNames = ['', '', ''];
     let activeLoopIndex = 0;
+    let masterOwnerIndex = 0; // Loop que controla el buffer master (granulador / espectro). Empieza en Loop 1.
+    let loopOverdubMode = ['loop', 'loop', 'loop']; // 'loop' = duración fija (por defecto) | 'classic' = mezcla que alarga
     let loopFilePicker = null, loopPickerTarget = -1;
     const loopMics = [0, 1, 2].map(() => ({ on: false, muted: false, deviceId: '', ch: 0, stream: null, src: null, splitter: null, gain: null, rec: null, sc: null, starting: false }));
     let loopReversedBuffersCache = [null, null, null]; // Cache para buffers invertidos
@@ -2694,6 +2696,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
 
                     
                     {
+                        masterOwnerIndex = 0;
                         const anyLoopPart = [0, 1, 2].some(k => audioBuffers['loopSourceBuffer' + k]);
                         for (let k = 0; k < 3; k++) setLoopSourceBuffer(k, anyLoopPart ? (audioBuffers['loopSourceBuffer' + k] || null) : decodedMainBuffer, '');
                         setMasterBuffer(decodedMainBuffer);
@@ -4402,18 +4405,18 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         mainAudioRecorder.ondataavailable = (event) => { if (event.data && event.data.size > 0) mainRecordedChunks.push(event.data); };
         mainAudioRecorder.onstop = async () => {
             if (mainRecordedChunks.length === 0 && currentRecordingMode !== "clear_for_empty_record" && currentRecordingMode !== "clear_direct") {
-                if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(true); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true; }
+                if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer; }
                 enableRecordingButtons(); currentRecordingMode = ""; return;
             }
             if (currentRecordingMode === "clear_for_empty_record" || currentRecordingMode === "clear_direct") {
-                updateLoopAndGranulatorWithNewBuffer(null); mainRecordedChunks = []; if (recordedWaveformCanvas) drawMainRecordedWaveform(true); enableRecordingButtons(); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true; currentRecordingMode = ""; return;
+                updateLoopAndGranulatorWithNewBuffer(null); mainRecordedChunks = []; if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); enableRecordingButtons(); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer; currentRecordingMode = ""; return;
             }
             const blob = new Blob(mainRecordedChunks, { type: mainAudioRecorder.mimeType || 'audio/webm' });
             mainRecordedChunks = [];
             if (blob.size === 0 && currentRecordingMode !== "record") { enableRecordingButtons(); currentRecordingMode = ""; return; }
             try {
                 const arrayBuffer = await blob.arrayBuffer();
-                if (arrayBuffer.byteLength === 0) { if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(true); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true; } enableRecordingButtons(); currentRecordingMode = ""; return; }
+                if (arrayBuffer.byteLength === 0) { if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer; } enableRecordingButtons(); currentRecordingMode = ""; return; }
                 const decodedAudioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 let resultingBuffer = null;
                 if (currentRecordingMode === "record") { 
@@ -4428,7 +4431,8 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                     if (newDuration > 0) { loopSelections[activeLoopIndex] = { start: absSel.start / newDuration, end: absSel.end / newDuration }; }
                     loadedAudioFileName = "Grabación (Append)";
                 } else if (currentRecordingMode === "overdub") { 
-                    resultingBuffer = loopSrcBuf[activeLoopIndex] ? mixAudioBuffers(loopSrcBuf[activeLoopIndex], decodedAudioBuffer, audioContext) : decodedAudioBuffer; 
+                    if (loopSrcBuf[activeLoopIndex] && loopOverdubMode[activeLoopIndex] === 'loop') resultingBuffer = mixAudioBuffersCircular(loopSrcBuf[activeLoopIndex], decodedAudioBuffer, audioContext);
+                    else resultingBuffer = loopSrcBuf[activeLoopIndex] ? mixAudioBuffers(loopSrcBuf[activeLoopIndex], decodedAudioBuffer, audioContext) : decodedAudioBuffer; 
                     loadedAudioFileName = "Grabación (Overdub)";
                 }
                 updateLoopAndGranulatorWithNewBuffer(resultingBuffer);
@@ -4436,7 +4440,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                 if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer;
             } catch (decodeError) {
                 console.error("Error decodificando audio grabado principal:", decodeError);
-                if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(true); }
+                if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); }
             }
             currentRecordingMode = "";
             enableRecordingButtons();
@@ -4479,15 +4483,37 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         }
         return mixedBuffer;
     }
+    // Overdub con duración fija: la grabación nueva se suma desde el inicio del loop y, si es más larga, da vueltas
+    // sobre el loop sumándose encima de todas las capas anteriores. La duración del buffer base NO cambia.
+    function mixAudioBuffersCircular(baseBuffer, recBuffer, context) {
+        if (!baseBuffer) return recBuffer; if (!recBuffer) return baseBuffer;
+        if (baseBuffer.sampleRate !== recBuffer.sampleRate) { console.error("No se pueden mezclar buffers con diferentes sample rates."); return baseBuffer; }
+        const L = baseBuffer.length;
+        if (L <= 0) return baseBuffer;
+        const numberOfChannels = baseBuffer.numberOfChannels;
+        const out = context.createBuffer(numberOfChannels, L, baseBuffer.sampleRate);
+        for (let ch = 0; ch < numberOfChannels; ch++) {
+            const o = out.getChannelData(ch);
+            o.set(baseBuffer.getChannelData(ch));
+            const r = recBuffer.getChannelData(Math.min(ch, recBuffer.numberOfChannels - 1));
+            let pos = 0;
+            for (let n = 0; n < r.length; n++) {
+                const v = o[pos] + r[n];
+                o[pos] = v > 1 ? 1 : (v < -1 ? -1 : v);
+                if (++pos >= L) pos = 0;
+            }
+        }
+        return out;
+    }
     if (stopRecBtn) stopRecBtn.addEventListener('click', () => { if (mainAudioRecorder && mainAudioRecorder.state === "recording") { mainAudioRecorder.stop(); if (stopRecBtn) stopRecBtn.disabled = true; } else { enableRecordingButtons(); } });
     if (clearRecBtn) clearRecBtn.addEventListener('click', () => {
         if (mainAudioRecorder && mainAudioRecorder.state === "recording") { currentRecordingMode = "clear_for_empty_record"; mainAudioRecorder.stop(); }
-        else { updateLoopAndGranulatorWithNewBuffer(null); mainRecordedChunks = []; if (recordedWaveformCanvas) drawMainRecordedWaveform(true); currentRecordingMode = "clear_direct"; }
+        else { updateLoopAndGranulatorWithNewBuffer(null); mainRecordedChunks = []; if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); currentRecordingMode = "clear_direct"; }
         loopSelections.forEach((s, i) => { loopSelections[i] = { start: 0, end: 1 }; sampleSelections[i] = { start: 0, end: 0 }; if (loopCanvases[i]) drawLoopWaveformVisuals(i, true); });
         isLoopRealtimePlaying.forEach((isPlaying, i) => { if (isPlaying) stopLoopRealtimePlayback(i); });
         loadedAudioFileName = null; // Limpiar nombre de archivo
         enableRecordingButtons();
-        if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = true;
+        if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer;
         if (currentRecordingMode === "clear_direct") currentRecordingMode = "";
     });
     function drawMainRecordedWaveform(clearCanvasOnly = false) {
@@ -5273,7 +5299,7 @@ function stopSidechainEnvelopeProcessing() {
         if (loopCanvases[i]) { loopCanvases[i].style.cursor = 'crosshair'; drawLoopWaveformVisuals(i); }
         if (loopPlayPauseBtns[i]) loopPlayPauseBtns[i].disabled = !buf;
         updateLoopMenuUI(i);
-        if (i === activeLoopIndex) setMasterBuffer(buf);
+        if (i === masterOwnerIndex) setMasterBuffer(buf);
     }
     // Grabaciones, append, overdub y clear actúan sobre el loop activo
     function updateLoopAndGranulatorWithNewBuffer(audioBuf) {
@@ -5284,7 +5310,7 @@ function stopSidechainEnvelopeProcessing() {
         activeLoopIndex = i;
         loopCanvases.forEach((c, k) => { const g = c && c.closest('.loop-visualizer-group'); if (g) g.classList.toggle('loop-active', k === i); });
         loopMics.forEach((m, k) => { if (m.rec && audioContext) m.rec.gain.setTargetAtTime(k === i ? 1 : 0, audioContext.currentTime, 0.01); });
-        if (loopSrcBuf[i]) setMasterBuffer(loopSrcBuf[i]); else enableRecordingButtons();
+        enableRecordingButtons();
         syncEasyModeSourceUI();
     }
     function syncEasyModeSourceUI() {
@@ -5408,13 +5434,18 @@ function stopSidechainEnvelopeProcessing() {
         applyLoopMicGain(i);
     }
 
+    function toggleLoopOverdubMode(i) {
+        loopOverdubMode[i] = loopOverdubMode[i] === 'loop' ? 'classic' : 'loop';
+        updateLoopMenuUI(i);
+    }
+
     // ---------- Envíos de audio ----------
     function sendLoopAudio(i, target) {
         const srcBuf = loopSrcBuf[i];
         if (!srcBuf) { alert('El Loop ' + (i + 1) + ' no tiene audio para enviar.'); return; }
         const toLoop = (k) => setLoopSourceBuffer(k, cloneAudioBuffer(srcBuf), loopFileNames[i]);
-        if (target === 'gran' || target === 'spec') setMasterBuffer(srcBuf);
-        else if (target === 'all') { [0, 1, 2].filter(k => k !== i).forEach(toLoop); setMasterBuffer(srcBuf); }
+        if (target === 'gran' || target === 'spec') { masterOwnerIndex = i; setMasterBuffer(srcBuf); }
+        else if (target === 'all') { masterOwnerIndex = i; [0, 1, 2].filter(k => k !== i).forEach(toLoop); setMasterBuffer(srcBuf); }
         else if (target.indexOf('loop') === 0) toLoop(parseInt(target.slice(4), 10));
     }
 
@@ -5431,6 +5462,12 @@ function stopSidechainEnvelopeProcessing() {
         if (micBtn) { micBtn.textContent = m.on ? 'MIC ON' : 'MIC OFF'; micBtn.classList.toggle('on', m.on); }
         const fn = panel.querySelector('[data-role="fname"]');
         if (fn) fn.textContent = loopFileNames[i] || (loopSrcBuf[i] ? 'Audio sin nombre' : 'Sin audio');
+        const od = panel.querySelector('[data-act="odmode"]');
+        if (od) {
+            const fixed = loopOverdubMode[i] === 'loop';
+            od.textContent = fixed ? 'Loop: duración fija' : 'Clásico: alarga';
+            od.title = fixed ? 'El overdub da vueltas sobre el loop sin alargarlo' : 'El overdub se mezcla desde el inicio y alarga el loop si es más largo';
+        }
     }
     function initLoopSources() {
         loopFilePicker = document.createElement('input');
@@ -5449,6 +5486,7 @@ function stopSidechainEnvelopeProcessing() {
                 '<div class="loop-menu-row head"><span>Loop ' + n + ' · entradas y envíos</span><button type="button" data-act="close" aria-label="Cerrar menú">&#8943; cerrar</button></div>' +
                 '<div class="loop-menu-row"><button type="button" data-act="mic">MIC OFF</button><select data-act="dev" aria-label="Dispositivo de entrada"><option value="">Predeterminado</option></select><select data-act="ch" aria-label="Canal de entrada"><option value="0">Canal 1</option></select></div>' +
                 '<div class="loop-menu-row"><button type="button" data-act="file">Archivo…</button><span class="loop-file-name" data-role="fname">Sin audio</span></div>' +
+                '<div class="loop-menu-row"><span>Overdub:</span><button type="button" data-act="odmode">Loop: duración fija</button></div>' +
                 '<div class="loop-menu-row"><span>Enviar a:</span>' + others.map(k => '<button type="button" data-send="loop' + k + '">Loop ' + (k + 1) + '</button>').join('') +
                 '<button type="button" data-send="gran">Granular</button><button type="button" data-send="spec">Espectro</button><button type="button" data-send="all">Todo</button></div>';
             menuBtn.addEventListener('click', (e) => { e.stopPropagation(); panel.classList.add('open'); });
@@ -5456,6 +5494,7 @@ function stopSidechainEnvelopeProcessing() {
                 const b = e.target.closest('button'); if (!b) return;
                 if (b.dataset.act === 'close') panel.classList.remove('open');
                 else if (b.dataset.act === 'mic') toggleLoopMic(i);
+                else if (b.dataset.act === 'odmode') toggleLoopOverdubMode(i);
                 else if (b.dataset.act === 'file') pickFileForLoop(i);
                 else if (b.dataset.send) sendLoopAudio(i, b.dataset.send);
             });
