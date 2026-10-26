@@ -2337,6 +2337,8 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
     let loopFileNames = ['', '', ''];
     let activeLoopIndex = 0;
     let masterOwnerIndex = 0; // Loop que controla el buffer master (granulador / espectro). Empieza en Loop 1.
+    let liveOverdub = null; // sesión de overdub en vivo (captura PCM + actualización del loop mientras se graba)
+    const LIVE_OVERDUB_REFRESH_MS = 600;
     let loopOverdubMode = ['loop', 'loop', 'loop']; // 'loop' = duración fija (por defecto) | 'classic' = mezcla que alarga
     let loopFilePicker = null, loopPickerTarget = -1;
     const loopMics = [0, 1, 2].map(() => ({ on: false, muted: false, deviceId: '', ch: 0, stream: null, src: null, splitter: null, gain: null, rec: null, sc: null, starting: false }));
@@ -3824,6 +3826,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
             currentRecordingMode = mode;
             try {
                 mainAudioRecorder.start();
+                if (mode === "overdub") startLiveOverdub(activeLoopIndex);
                 enableRecordingButtons();
             } catch (e) {
                 console.error(`Error al iniciar grabación en modo ${mode}:`, e);
@@ -4404,6 +4407,12 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         catch (e) { mainAudioRecorder = new MediaRecorder(mainRecordingStreamDestinationNode.stream); }
         mainAudioRecorder.ondataavailable = (event) => { if (event.data && event.data.size > 0) mainRecordedChunks.push(event.data); };
         mainAudioRecorder.onstop = async () => {
+            {
+                const liveOd = finishLiveOverdub();
+                if (liveOd && currentRecordingMode === "overdub" && finalizeLiveOverdub(liveOd)) {
+                    mainRecordedChunks = []; currentRecordingMode = ""; enableRecordingButtons(); return;
+                }
+            }
             if (mainRecordedChunks.length === 0 && currentRecordingMode !== "clear_for_empty_record" && currentRecordingMode !== "clear_direct") {
                 if (currentRecordingMode === "record") { updateLoopAndGranulatorWithNewBuffer(null); if (recordedWaveformCanvas) drawMainRecordedWaveform(!mainRecorderAudioBuffer); if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer; }
                 enableRecordingButtons(); currentRecordingMode = ""; return;
@@ -4504,6 +4513,125 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
             }
         }
         return out;
+    }
+    // ---------- Overdub en vivo (solo overdub) ----------
+    // Mientras se graba, se captura el audio crudo (PCM) y cada LIVE_OVERDUB_REFRESH_MS se suma al buffer del loop
+    // y se refresca su reproducción con un crossfade, de modo que la capa nueva se escucha sin pulsar Stop.
+    // Si el loop es el dueño del master, el granulador/espectro reciben el mismo buffer en vivo.
+    function liveOverdubFlush(s) {
+        const n = s.chunks[0].length;
+        if (s.nextChunk >= n) return false;
+        const L = s.liveBuf.length, wrap = (s.mode === 'loop');
+        for (let k = s.nextChunk; k < n; k++) {
+            const len = s.chunks[0][k].length;
+            for (let ch = 0; ch < s.liveBuf.numberOfChannels; ch++) {
+                const o = s.liveBuf.getChannelData(ch);
+                const r = s.chunks[Math.min(ch, 1)][k];
+                let pos = s.pos;
+                if (wrap) {
+                    for (let j = 0; j < len; j++) { const v = o[pos] + r[j]; o[pos] = v > 1 ? 1 : (v < -1 ? -1 : v); if (++pos >= L) pos = 0; }
+                } else {
+                    for (let j = 0; j < len && pos < L; j++, pos++) { const v = o[pos] + r[j]; o[pos] = v > 1 ? 1 : (v < -1 ? -1 : v); }
+                }
+            }
+            s.pos = wrap ? (s.pos + len) % L : s.pos + len;
+        }
+        s.nextChunk = n;
+        return true;
+    }
+    // Cambia el buffer del loop sin reiniciarlo: la posición se calcula en el instante en que arranca la voz nueva (sin deriva)
+    function crossfadeLoopLive(i) {
+        if (!audioContext || !isLoopRealtimePlaying[i]) return;
+        const old = loopVoices[i];
+        const startAt = audioContext.currentTime + 0.02;
+        let frac = 0;
+        if (old && old.bufferDuration > 0) {
+            const vpos = old.refPos + Math.max(0, startAt - old.refCtxTime) * old.rate;
+            frac = isFinite(vpos) ? wrapLoopPosition(old, vpos) / old.bufferDuration : 0;
+        }
+        loopVoices[i] = null;
+        if (old) releaseLoopVoice(old, LOOP_CROSSFADE_TIME);
+        playLoopSegmentRealtimePlayback(i, startAt, frac, LOOP_CROSSFADE_TIME);
+    }
+    // Publica un buffer de la MISMA duración en el loop (y en el master si el loop es el dueño) sin parar nada
+    function refreshLoopBufferLive(i, buf) {
+        loopSrcBuf[i] = buf;
+        loopSrcId[i]++;
+        loopDedicatedBuffers[i] = null;
+        loopReversedBuffersCache[i] = null;
+        flexPitchCache[i] = {};
+        loopFlexPendingKeys[i] = {};
+        if (isLoopRealtimePlaying[i]) crossfadeLoopLive(i); else ensureLoopDedicatedBuffer(i);
+        if (loopCanvases[i]) drawLoopWaveformVisuals(i);
+        if (i === masterOwnerIndex) setMasterBuffer(buf);
+    }
+    function liveOverdubTick() {
+        const s = liveOverdub;
+        if (!s) return;
+        if (!mainAudioRecorder || mainAudioRecorder.state !== 'recording') return;
+        const cur = loopSrcBuf[s.idx];
+        if (cur !== s.base && cur !== s.liveBuf) { s.detached = true; clearInterval(s.timer); return; }
+        if (liveOverdubFlush(s)) refreshLoopBufferLive(s.idx, s.liveBuf);
+    }
+    function startLiveOverdub(idx) {
+        finishLiveOverdub();
+        const base = loopSrcBuf[idx];
+        if (!audioContext || !recordSourceMixer || !base || base.length <= 0 || base.sampleRate !== audioContext.sampleRate) return;
+        try {
+            const node = audioContext.createScriptProcessor(4096, 2, 2);
+            const mute = audioContext.createGain(); mute.gain.value = 0;
+            const s = { idx, base, liveBuf: cloneAudioBuffer(base), mode: loopOverdubMode[idx], chunks: [[], []], total: 0, nextChunk: 0, pos: 0, node, mute, timer: null, detached: false };
+            node.onaudioprocess = (e) => {
+                const inb = e.inputBuffer;
+                s.chunks[0].push(new Float32Array(inb.getChannelData(0)));
+                s.chunks[1].push(new Float32Array(inb.numberOfChannels > 1 ? inb.getChannelData(1) : inb.getChannelData(0)));
+                s.total += inb.length;
+            };
+            recordSourceMixer.connect(node); node.connect(mute); mute.connect(audioContext.destination);
+            s.timer = setInterval(liveOverdubTick, LIVE_OVERDUB_REFRESH_MS);
+            liveOverdub = s;
+        } catch (e) { console.error('No se pudo iniciar el overdub en vivo (se usará el método normal):', e); liveOverdub = null; }
+    }
+    function finishLiveOverdub() {
+        const s = liveOverdub;
+        if (!s) return null;
+        liveOverdub = null;
+        clearInterval(s.timer);
+        try { s.node.onaudioprocess = null; } catch (e) {}
+        try { if (recordSourceMixer) recordSourceMixer.disconnect(s.node); } catch (e) {}
+        try { s.node.disconnect(); } catch (e) {}
+        try { s.mute.disconnect(); } catch (e) {}
+        return s;
+    }
+    function liveOverdubBuildPcm(s) {
+        if (s.total <= 0) return null;
+        const out = audioContext.createBuffer(2, s.total, audioContext.sampleRate);
+        for (let ch = 0; ch < 2; ch++) { const o = out.getChannelData(ch); let at = 0; s.chunks[ch].forEach(c => { o.set(c, at); at += c.length; }); }
+        return out;
+    }
+    // Cierra el overdub en vivo. Devuelve true si resolvió el resultado final (si no, sigue el camino original con el MediaRecorder)
+    function finalizeLiveOverdub(s) {
+        liveOverdubFlush(s);
+        if (s.total <= 0) return false;
+        const idx = s.idx, cur = loopSrcBuf[idx];
+        const attached = (cur === s.liveBuf);
+        if (s.mode === 'loop' && (attached || cur === s.base)) {
+            // El buffer en vivo ya contiene el resultado final: se publica sin parar la reproducción
+            refreshLoopBufferLive(idx, s.liveBuf);
+            loopFileNames[idx] = 'Grabación (Overdub)';
+            loadedAudioFileName = 'Grabación (Overdub)';
+            updateLoopMenuUI(idx);
+        } else {
+            // Modo clásico (puede alargar el loop) o buffer reemplazado durante la grabación: igual que antes, con el audio exacto
+            const pcm = liveOverdubBuildPcm(s);
+            const base = attached ? s.base : cur;
+            const res = !base ? pcm : (s.mode === 'loop' ? mixAudioBuffersCircular(base, pcm, audioContext) : mixAudioBuffers(base, pcm, audioContext));
+            loadedAudioFileName = 'Grabación (Overdub)';
+            setLoopSourceBuffer(idx, res, 'Grabación (Overdub)');
+        }
+        if (recordedWaveformCanvas) drawMainRecordedWaveform();
+        if (granulatorPlayToggleBtn) granulatorPlayToggleBtn.disabled = !mainRecorderAudioBuffer;
+        return true;
     }
     if (stopRecBtn) stopRecBtn.addEventListener('click', () => { if (mainAudioRecorder && mainAudioRecorder.state === "recording") { mainAudioRecorder.stop(); if (stopRecBtn) stopRecBtn.disabled = true; } else { enableRecordingButtons(); } });
     if (clearRecBtn) clearRecBtn.addEventListener('click', () => {
@@ -5349,13 +5477,23 @@ function stopSidechainEnvelopeProcessing() {
         m.gain = audioContext.createGain(); m.gain.gain.value = 0;
         m.rec = audioContext.createGain(); m.rec.gain.value = (i === activeLoopIndex) ? 1 : 0;
         m.sc = audioContext.createGain(); m.sc.gain.value = (loopSidechainSendSwitches[i] && loopSidechainSendSwitches[i].checked) ? 1 : 0;
-        m.gain.connect(micBooster); m.gain.connect(m.rec); m.gain.connect(m.sc);
+        // El monitoreo pasa por su propio nodo (m.mon) para igualar su nivel al de la grabación reproducida sin alterar lo que se graba
+        m.mon = audioContext.createGain(); m.mon.gain.value = loopMonitorGain(i);
+        m.gain.connect(m.mon); m.mon.connect(micBooster); m.gain.connect(m.rec); m.gain.connect(m.sc);
         if (recordSourceMixer) m.rec.connect(recordSourceMixer);
         if (sidechainSummingGain) m.sc.connect(sidechainSummingGain);
+    }
+    // Ganancia del monitoreo: (fader × fader/boost) × boost = fader², el mismo nivel con el que suena la grabación (grabada con el fader y reproducida con el fader)
+    function loopMonitorGain(i) {
+        let f = parseFloat(loopVolumeFaders[i] ? loopVolumeFaders[i].value : 1);
+        if (!isFinite(f)) f = 1;
+        const boost = (micBooster && micBooster.gain.value > 0) ? micBooster.gain.value : 1;
+        return f / boost;
     }
     function applyLoopMicGain(i) {
         const m = loopMics[i];
         if (!m.gain || !audioContext) return;
+        if (m.mon) m.mon.gain.setTargetAtTime(loopMonitorGain(i), audioContext.currentTime, 0.01);
         let v = (m.on && !m.muted) ? parseFloat(loopVolumeFaders[i] ? loopVolumeFaders[i].value : 1) : 0;
         if (!isFinite(v)) v = 1;
         m.gain.gain.setTargetAtTime(v, audioContext.currentTime, 0.01);
