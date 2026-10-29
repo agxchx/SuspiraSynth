@@ -1113,6 +1113,25 @@
     .loop-menu-panel .loop-file-name { opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 40%; }
     .loop-menu-panel button.on { background: #c0392b; color: #fff; }
     .loop-visualizer-group canvas.drag-over { outline: 2px dashed var(--highlight-color, #f0f); }
+
+    /* ===== Imagen espectral (bordes -> espectro) ===== */
+    #spectralImageSection { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; padding-top: 6px; border-top: 1px solid #555; }
+    #spectralImageDropZone {
+      border: 1px dashed #777; border-radius: 4px; padding: 8px 6px; text-align: center; cursor: pointer;
+      font-size: 0.75rem; color: var(--text-color); background: rgba(255,255,255,0.03); user-select: none;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+    #spectralImageDropZone:hover, #spectralImageDropZone:focus-visible, #spectralImageDropZone.si-dragover {
+      background: rgba(120,255,240,0.10); border-color: #8ff; outline: none;
+    }
+    #spectralImageInfo { font-size: 0.7rem; color: #aaa; line-height: 1.3; min-height: 1.3em; word-break: break-word; }
+    #spectralImageInfo.si-warn { color: #ffb347; }
+    #spectralImageSection .si-row { display: flex; align-items: center; gap: 5px; }
+    #spectralImageSection .si-row label { flex-shrink: 0; font-size: 0.75rem; min-width: 70px; }
+    #spectralImageSection .si-row input[type="range"] { flex-grow: 1; min-width: 0; }
+    #spectralImageSection .si-value { width: 42px; text-align: right; font-size: 0.7rem; color: var(--text-color); flex-shrink: 0; }
+    #spectralImageSection .si-buttons { display: flex; gap: 5px; }
+    #spectralImageSection .si-buttons button { flex: 1; font-size: 0.75rem; }
 </style>
 </head>
 <body>
@@ -1272,6 +1291,27 @@
                   <span class="toggle-switch-slider"></span>
               </label>
             </div>
+        <div id="spectralImageSection">
+            <div id="spectralImageDropZone" tabindex="0" role="button" aria-label="Arrastra una imagen PNG o JPG aquí, o pulsa para abrir el menú de archivos">
+                Arrastra una imagen (PNG/JPG) o pulsa para elegir
+            </div>
+            <input type="file" id="spectralImageFileInput" accept="image/png,image/jpeg" style="display:none">
+            <div id="spectralImageInfo">Sin imagen.</div>
+            <div class="si-row">
+                <label for="spectralImageSensitivity">Sensibilidad</label>
+                <input type="range" id="spectralImageSensitivity" class="fader" min="0" max="1" step="0.01" value="0.5">
+                <span class="si-value" id="spectralImageSensitivityValue">50%</span>
+            </div>
+            <div class="si-row">
+                <label for="spectralImageSpeed">Velocidad</label>
+                <input type="range" id="spectralImageSpeed" class="fader mappable" min="-2" max="2" step="0.05" value="0">
+                <span class="si-value" id="spectralImageSpeedValue">1.00x</span>
+            </div>
+            <div class="si-buttons">
+                <button id="spectralImageAnalyzeBtn" disabled>Analizar</button>
+                <button id="spectralImageRemoveBtn" disabled>Quitar imagen</button>
+            </div>
+        </div>
         </div>
       </div>
       <div class="column-middle">
@@ -2364,6 +2404,28 @@ function showStartButtonOnLoadingScreen(showAllButtons = true) {
     let drawnPaths = [[]];
     let pathPlaybackRequestID = null;
     let pathPlaybackIndex = 0;
+
+    // --- Imagen espectral (bordes -> espectro) ---
+    const SPEC_IMG_COLS = 256;
+    const SPEC_IMG_W = 512;
+    const SPEC_IMG_H = 256;
+    const SPEC_IMG_MAX_SUM = 2.5;
+    let spectralImageRegistry = new Map();
+    let spectralImageCurrentId = null;
+    let spectralImageAnalysis = null;
+    let spectralImageAnalyzedSens = null;
+    let spectralImageRequestToken = 0;
+    let spectralImageWorker = null;
+    let spectralImageReqCounter = 0;
+    const spectralImagePending = new Map();
+    let imagePlaybackTimer = null;
+    let imagePlaybackColumn = 0;
+    let imagePausedForDraw = false;
+    let currentImageGrainSource = null;
+    let imageHead = { col: 0, t0: 0, stepMs: 50 };
+    let trazoMatrix = null;
+    let trazoMatrixSig = '';
+    const siEls = {};
     let isDrawModeActive = true; 
 
     let samplerGrainPoints = [
@@ -2614,6 +2676,12 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                 toc.parts.push({ name: 'masterRecordedAudioBuffer', type: 'audio/wav', size: wavBlob.size });
             }
 
+            // --- Imágenes espectrales originales (PNG/JPG) como partes extra del TOC ---
+            for (const ip of getSpectralImagePartsForSave()) {
+                audioBlobs.push(ip.blob);
+                toc.parts.push({ name: 'spectralImage_' + ip.id, type: ip.mime, size: ip.blob.size, imageId: ip.id, fileName: ip.name });
+            }
+
             const tocString = JSON.stringify(toc);
             const tocBlob = new Blob([tocString], { type: 'application/json' });
             
@@ -2672,6 +2740,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                     let offset = 8 + Number(tocSize);
                     let appState = null;
                     const audioBuffers = {};
+                    const sessionImageParts = [];
                     
                     for (const part of toc.parts) {
                         const partBlob = fullFileBlob.slice(offset, offset + part.size);
@@ -2687,6 +2756,13 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                             } else {
                                audioBuffers[part.name] = null;
                             }
+                        } else if (part.type === 'image/png' || part.type === 'image/jpeg') {
+                            sessionImageParts.push({
+                                id: part.imageId || part.name,
+                                name: part.fileName || 'imagen',
+                                mime: part.type,
+                                blob: new Blob([partBlob], { type: part.type })
+                            });
                         }
                     }
                     
@@ -2729,6 +2805,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
                          ensureLoopDedicatedBuffer(i);
                     }
 
+                    resetSpectralImageRegistry(sessionImageParts);
                     await applySavedAppState(appState);
                     
                     updateAllVisualsFromState();
@@ -3247,6 +3324,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         }
         
         drawDrawnPaths(spectrumCanvasCtx, spectrumCanvas.width, spectrumCanvas.height);
+        drawSpectralImageLayer(spectrumCanvasCtx, spectrumCanvas.width, spectrumCanvas.height);
         
         if (lastParticleData) {
             spectrumCanvasCtx.globalCompositeOperation = 'destination-out';
@@ -3869,6 +3947,7 @@ const sidechainAmountDialEl = document.getElementById('sidechainAmountDial');
         reverb_updateDryWetMix();
         setupCanvasEventListeners();
         setupSpectralSynthEventListeners();
+        setupSpectralImage();
         createSpectralSynthFilterBank();
         createMainAudioChain();
         setupAudioFileLoader();
@@ -6419,6 +6498,7 @@ function stopSidechainEnvelopeProcessing() {
             spectralSynthVolume: spectralSynthVolumeFader?.value ?? "0.9",
             isDrawModeActive: isDrawModeActive,
             drawnPaths: JSON.parse(JSON.stringify(drawnPaths)),
+            spectralImage: getSpectralImageState(),
 
             granulatorLfoRate: granulatorLfoSpeedFader?.value ?? "1",
             granulatorLfoFilterDepth: granulatorLfoDepthFader?.value ?? "500",
@@ -6589,6 +6669,7 @@ function stopSidechainEnvelopeProcessing() {
         if(spectralSynthVolumeFader) localUpdateRangeParamProgrammatic(spectralSynthVolumeFader, parseFloat(state.spectralSynthVolume));
         if(spectralSynthDrawModeSwitch) spectralSynthDrawModeSwitch.checked = state.isDrawModeActive;
         isDrawModeActive = state.isDrawModeActive;
+        await applySpectralImageFromState(state.spectralImage);
 
         if(spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked !== state.isSpectralSynthOn) {
           spectralSynthPowerSwitch.click();
@@ -7421,6 +7502,7 @@ function stopSidechainEnvelopeProcessing() {
 
     function startPathPlayback() {
         if (pathPlaybackRequestID || !spectralSynthPowerSwitch.checked) return;
+        if (isSpectralImageReady()) { startImagePlayback(); return; }
         
         stopSpectralSynth();
         pathPlaybackIndex = 0;
@@ -7515,6 +7597,7 @@ function stopSidechainEnvelopeProcessing() {
     
     function startSpectralSynth() {
         if (isSpectralSynthActive) return;
+        if (isSpectralImageReady() && !isDrawingPath) return;
         isSpectralSynthActive = true;
         updateSpectralSynthFilters();
         scheduleNextSpectralGrain();
@@ -7530,6 +7613,549 @@ function stopSidechainEnvelopeProcessing() {
         spectralFilterBank.forEach(channel => {
             channel.gainNode.gain.cancelScheduledValues(audioContext.currentTime);
             channel.gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+        });
+    }
+
+    // =====================================================================
+    // IMAGEN ESPECTRAL: bordes de una foto -> espectro (worker: image-worker.js)
+    // Mapeo: X = posición de lectura/tiempo, Y = frecuencia (25 filtros),
+    //        intensidad del borde = ganancia (curva al cuadrado, como los trazos).
+    // =====================================================================
+
+    function isSpectralImageReady() {
+        return !!(spectralImageAnalysis && mainRecorderAudioBuffer);
+    }
+
+    function spectralImageSpeedValue() {
+        const l = siEls.speed ? parseFloat(siEls.speed.value) : 0;
+        return Math.pow(2, isFinite(l) ? l : 0);
+    }
+
+    function updateSpectralImageSliderLabels() {
+        if (siEls.sensLabel && siEls.sens) siEls.sensLabel.textContent = Math.round(parseFloat(siEls.sens.value) * 100) + '%';
+        if (siEls.speedLabel) siEls.speedLabel.textContent = spectralImageSpeedValue().toFixed(2) + 'x';
+    }
+
+    function setSpectralImageStatus(msg, warn) {
+        if (!siEls.info) return;
+        siEls.info.textContent = msg;
+        siEls.info.classList.toggle('si-warn', !!warn);
+    }
+
+    function describeSpectralImage(entry) {
+        if (!entry) return 'Sin imagen.';
+        let txt = `${entry.name} · ${entry.width}×${entry.height} px`;
+        let warn = false;
+        if (spectrumCanvas && spectrumCanvas.width > 0 && spectrumCanvas.height > 0 && entry.width > 0 && entry.height > 0) {
+            const imgRatio = entry.width / entry.height;
+            const canvasRatio = spectrumCanvas.width / spectrumCanvas.height;
+            txt += ` · proporción ${imgRatio.toFixed(2)}:1`;
+            if (Math.abs(imgRatio / canvasRatio - 1) > 0.15) {
+                txt += ` · se estirará (el lienzo es ${canvasRatio.toFixed(2)}:1; ideal 1280×640)`;
+                warn = true;
+            }
+        }
+        return { txt, warn };
+    }
+
+    function refreshSpectralImageUI(busy) {
+        if (!siEls.info) return;
+        const entry = spectralImageCurrentId ? spectralImageRegistry.get(spectralImageCurrentId) : null;
+        if (busy) {
+            setSpectralImageStatus('Analizando bordes…', false);
+        } else if (!entry) {
+            setSpectralImageStatus('Sin imagen.', false);
+        } else {
+            const d = describeSpectralImage(entry);
+            let t = d.txt;
+            if (spectralImageAnalysis) {
+                t += ' · analizada';
+                if (!mainRecorderAudioBuffer) t += ' (carga audio para oírla)';
+            } else {
+                t += ' · pulsa Analizar';
+            }
+            setSpectralImageStatus(t, d.warn);
+        }
+        if (siEls.analyzeBtn) siEls.analyzeBtn.disabled = !entry || !!busy;
+        if (siEls.removeBtn) siEls.removeBtn.disabled = !entry || !!busy;
+    }
+
+    // ---------------- Registro de imágenes (en memoria, id único) ----------------
+    function newSpectralImageId() {
+        return 'img_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function resumePathPlaybackIfNeeded() {
+        if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked && mainRecorderAudioBuffer && !isDrawingPath &&
+            pathPlaybackRequestID === null && !isSpectralImageReady() && drawnPaths.flat().length > 0) {
+            startPathPlayback();
+        }
+    }
+
+    function setCurrentSpectralImage(id) {
+        spectralImageCurrentId = id;
+        spectralImageAnalysis = null;
+        spectralImageAnalyzedSens = null;
+        spectralImageRequestToken++;
+        imagePausedForDraw = false;
+        stopImagePlayback();
+        resumePathPlaybackIfNeeded();
+        refreshSpectralImageUI(false);
+    }
+
+    function resetSpectralImageRegistry(parts) {
+        spectralImageRegistry = new Map();
+        (parts || []).forEach(p => {
+            spectralImageRegistry.set(p.id, { id: p.id, blob: p.blob, mime: p.mime, name: p.name, width: 0, height: 0, analyses: new Map() });
+        });
+        setCurrentSpectralImage(null);
+        // Dimensiones para el aviso de proporción (no bloqueante)
+        spectralImageRegistry.forEach(entry => {
+            readSpectralImageDims(entry.blob).then(d => { entry.width = d.w; entry.height = d.h; refreshSpectralImageUI(false); }).catch(() => {});
+        });
+    }
+
+    function getSpectralImagePartsForSave() {
+        const ids = new Set();
+        if (spectralImageCurrentId) ids.add(spectralImageCurrentId);
+        savedStates.forEach(st => { if (st && st.spectralImage && st.spectralImage.id) ids.add(st.spectralImage.id); });
+        const out = [];
+        ids.forEach(id => {
+            const e = spectralImageRegistry.get(id);
+            if (e && e.blob) out.push({ id: e.id, name: e.name, mime: e.mime, blob: e.blob });
+        });
+        return out;
+    }
+
+    function getSpectralImageState() {
+        if (!spectralImageCurrentId) return null;
+        const entry = spectralImageRegistry.get(spectralImageCurrentId);
+        const sensNow = siEls.sens ? parseFloat(siEls.sens.value) : 0.5;
+        return {
+            id: spectralImageCurrentId,
+            name: entry ? entry.name : '',
+            sensitivity: spectralImageAnalysis && spectralImageAnalyzedSens !== null ? spectralImageAnalyzedSens : sensNow,
+            speed: siEls.speed ? parseFloat(siEls.speed.value) : 0,
+            analyzed: !!spectralImageAnalysis
+        };
+    }
+
+    async function applySpectralImageFromState(s) {
+        if (!s || !s.id || !spectralImageRegistry.has(s.id)) {
+            if (spectralImageCurrentId !== null) setCurrentSpectralImage(null);
+            return;
+        }
+        if (siEls.sens && typeof s.sensitivity === 'number') siEls.sens.value = s.sensitivity;
+        if (siEls.speed && typeof s.speed === 'number') siEls.speed.value = s.speed;
+        updateSpectralImageSliderLabels();
+        if (spectralImageCurrentId !== s.id || !s.analyzed) setCurrentSpectralImage(s.id);
+        if (s.analyzed) {
+            await runSpectralImageAnalysis();
+        }
+    }
+
+    // ---------------- Worker ----------------
+    function getSpectralImageWorker() {
+        if (!spectralImageWorker) {
+            spectralImageWorker = new Worker('image-worker.js');
+            spectralImageWorker.onmessage = (e) => {
+                const m = e.data;
+                const p = spectralImagePending.get(m.reqId);
+                if (!p) return;
+                spectralImagePending.delete(m.reqId);
+                if (m.type === 'result') p.resolve(m); else p.reject(new Error(m.message || 'Error en image-worker'));
+            };
+            spectralImageWorker.onerror = (err) => {
+                spectralImagePending.forEach(p => p.reject(new Error('No se pudo ejecutar image-worker.js (¿está junto al HTML?)')));
+                spectralImagePending.clear();
+                try { spectralImageWorker.terminate(); } catch (e) {}
+                spectralImageWorker = null;
+            };
+        }
+        return spectralImageWorker;
+    }
+
+    function readSpectralImageDims(blob) {
+        return createImageBitmap(blob).then(bmp => {
+            const d = { w: bmp.width, h: bmp.height };
+            if (bmp.close) bmp.close();
+            return d;
+        });
+    }
+
+    // Decodifica y reduce a 512x256 (por pasos de /2 para mantener la calidad)
+    async function spectralImageToPixels(blob) {
+        const bmp = await createImageBitmap(blob);
+        let src = bmp;
+        let sw = bmp.width, sh = bmp.height;
+        while (sw >= SPEC_IMG_W * 2 || sh >= SPEC_IMG_H * 2) {
+            const nw = sw >= SPEC_IMG_W * 2 ? Math.ceil(sw / 2) : sw;
+            const nh = sh >= SPEC_IMG_H * 2 ? Math.ceil(sh / 2) : sh;
+            const c = document.createElement('canvas');
+            c.width = nw; c.height = nh;
+            const cx = c.getContext('2d');
+            cx.fillStyle = '#fff'; cx.fillRect(0, 0, nw, nh);
+            cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+            cx.drawImage(src, 0, 0, nw, nh);
+            src = c; sw = nw; sh = nh;
+        }
+        const fc = document.createElement('canvas');
+        fc.width = SPEC_IMG_W; fc.height = SPEC_IMG_H;
+        const fx = fc.getContext('2d', { willReadFrequently: true });
+        fx.fillStyle = '#fff'; fx.fillRect(0, 0, SPEC_IMG_W, SPEC_IMG_H);
+        fx.imageSmoothingEnabled = true; fx.imageSmoothingQuality = 'high';
+        fx.drawImage(src, 0, 0, SPEC_IMG_W, SPEC_IMG_H);
+        if (bmp.close) bmp.close();
+        return fx.getImageData(0, 0, SPEC_IMG_W, SPEC_IMG_H);
+    }
+
+    function buildSpectralEdgeCanvas(edges, w, h) {
+        const base = document.createElement('canvas');
+        base.width = w; base.height = h;
+        const bctx = base.getContext('2d');
+        const img = bctx.createImageData(w, h);
+        const d = img.data;
+        for (let i = 0, p = 0; i < edges.length; i++, p += 4) {
+            const v = edges[i];
+            if (v === 0) continue;
+            const f = v / 255;
+            d[p] = 150; d[p + 1] = 255; d[p + 2] = 245;
+            d[p + 3] = Math.min(255, Math.round(70 + 185 * Math.pow(f, 0.7)));
+        }
+        bctx.putImageData(img, 0, 0);
+        // Versión engrosada solo para dibujar (el sonido usa los bordes finos)
+        const out = document.createElement('canvas');
+        out.width = w; out.height = h;
+        const octx = out.getContext('2d');
+        [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].forEach(o => octx.drawImage(base, o[0], o[1]));
+        return out;
+    }
+
+    async function analyzeSpectralImage(id, sens) {
+        const entry = spectralImageRegistry.get(id);
+        if (!entry) throw new Error('Imagen no encontrada en el registro.');
+        const key = Math.round(sens * 100);
+        if (entry.analyses.has(key)) return entry.analyses.get(key);
+
+        const imgData = await spectralImageToPixels(entry.blob);
+        const reqId = ++spectralImageReqCounter;
+        const worker = getSpectralImageWorker();
+        const result = await new Promise((resolve, reject) => {
+            spectralImagePending.set(reqId, { resolve, reject });
+            worker.postMessage({
+                type: 'analyze', reqId,
+                width: imgData.width, height: imgData.height,
+                pixels: imgData.data.buffer,
+                sensitivity: sens, cols: SPEC_IMG_COLS, bands: SPECTRAL_FILTER_COUNT
+            }, [imgData.data.buffer]);
+        });
+
+        const analysis = {
+            sens,
+            canvas: buildSpectralEdgeCanvas(result.edges, result.width, result.height),
+            matrix: result.matrix,
+            edgeCount: result.edgeCount
+        };
+        entry.analyses.set(key, analysis);
+        if (entry.analyses.size > 4) entry.analyses.delete(entry.analyses.keys().next().value);
+        return analysis;
+    }
+
+    async function runSpectralImageAnalysis() {
+        const id = spectralImageCurrentId;
+        if (!id) return;
+        const sens = siEls.sens ? parseFloat(siEls.sens.value) : 0.5;
+        const token = ++spectralImageRequestToken;
+        refreshSpectralImageUI(true);
+        try {
+            const analysis = await analyzeSpectralImage(id, sens);
+            if (token !== spectralImageRequestToken || id !== spectralImageCurrentId) return;
+            spectralImageAnalysis = analysis;
+            spectralImageAnalyzedSens = sens;
+            refreshSpectralImageUI(false);
+            if (analysis.edgeCount === 0) {
+                setSpectralImageStatus('No se detectaron bordes. Sube la sensibilidad.', true);
+            }
+            if (spectralSynthPowerSwitch && spectralSynthPowerSwitch.checked) startImagePlayback();
+        } catch (err) {
+            console.error('Análisis de imagen espectral:', err);
+            if (token === spectralImageRequestToken) {
+                refreshSpectralImageUI(false);
+                setSpectralImageStatus('Error al analizar: ' + err.message, true);
+            }
+        }
+    }
+
+    async function handleSpectralImageFile(file) {
+        if (!file) return;
+        const name = file.name || 'imagen';
+        let mime = file.type;
+        if (!/^image\/(png|jpeg)$/.test(mime)) {
+            if (/\.png$/i.test(name)) mime = 'image/png';
+            else if (/\.jpe?g$/i.test(name)) mime = 'image/jpeg';
+            else { setSpectralImageStatus('Formato no válido. Usa PNG o JPG.', true); return; }
+        }
+        try {
+            const blob = new Blob([file], { type: mime });
+            const dims = await readSpectralImageDims(blob);
+            const id = newSpectralImageId();
+            spectralImageRegistry.set(id, { id, blob, mime, name, width: dims.w, height: dims.h, analyses: new Map() });
+            setCurrentSpectralImage(id);
+        } catch (err) {
+            console.error(err);
+            setSpectralImageStatus('No se pudo leer la imagen.', true);
+        }
+    }
+
+    // ---------------- Trazos como capa del barrido ----------------
+    function getTrazoMatrix() {
+        const n = SPECTRAL_FILTER_COUNT, C = SPEC_IMG_COLS;
+        let total = 0, acc = 0;
+        for (const path of drawnPaths) {
+            for (const p of path) { total++; acc += p.x * 7 + p.y * 13; }
+        }
+        const sig = drawnPaths.length + ':' + total + ':' + acc.toFixed(6);
+        if (trazoMatrix && sig === trazoMatrixSig) return trazoMatrix;
+
+        const m = new Float32Array(C * n);
+        const colOf = (x) => Math.min(C - 1, Math.max(0, Math.floor(x * C)));
+        const stamp = (col, y) => {
+            const cf = 1 - y;
+            for (let i = 0; i < n; i++) {
+                const d = Math.abs(i / (n - 1) - cf);
+                if (d < 0.1) {
+                    let g = 1 - d / 0.1;
+                    g = g * g; // misma curva que updateSpectralSynthFilters
+                    const k = col * n + i;
+                    if (g > m[k]) m[k] = g;
+                }
+            }
+        };
+        for (const path of drawnPaths) {
+            for (let j = 0; j < path.length; j++) {
+                const p = path[j];
+                if (!p || typeof p.x !== 'number') continue;
+                stamp(colOf(p.x), p.y);
+                const q = path[j + 1];
+                if (q && typeof q.x === 'number') {
+                    const c1 = colOf(p.x), c2 = colOf(q.x);
+                    const steps = Math.max(Math.abs(c2 - c1), Math.ceil(Math.abs(q.y - p.y) * 48), 1);
+                    for (let st = 1; st < steps; st++) {
+                        const t = st / steps;
+                        stamp(colOf(p.x + (q.x - p.x) * t), p.y + (q.y - p.y) * t);
+                    }
+                }
+            }
+        }
+        trazoMatrix = m;
+        trazoMatrixSig = sig;
+        return m;
+    }
+
+    // Mezcla trazo + imagen: suma por filtro con tope en 1 y normalización por columna.
+    function updateSpectralSynthFiltersFromImage(col) {
+        if (!audioContext || !spectralImageAnalysis || spectralFilterBank.length === 0) return;
+        const n = SPECTRAL_FILTER_COUNT;
+        const img = spectralImageAnalysis.matrix;
+        const tz = getTrazoMatrix();
+        const gains = new Float32Array(n);
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+            const iv = img[col * n + i];
+            let v = iv * iv + tz[col * n + i];
+            if (v > 1) v = 1;
+            gains[i] = v;
+            sum += v;
+        }
+        const scale = sum > SPEC_IMG_MAX_SUM ? SPEC_IMG_MAX_SUM / sum : 1;
+        const now = audioContext.currentTime;
+        spectralFilterBank.forEach((channel, i) => {
+            channel.gainNode.gain.setTargetAtTime(gains[i] * scale, now, 0.015);
+        });
+    }
+
+    // Grano independiente de lastSpectralCoords (el ratón no lo altera).
+    function playGrainAtImagePosition(x, grainLength) {
+        if (!audioContext || !mainRecorderAudioBuffer) return;
+        if (currentImageGrainSource) {
+            try { currentImageGrainSource.stop(0); } catch (e) {}
+            currentImageGrainSource = null;
+        }
+        const dur = mainRecorderAudioBuffer.duration;
+        const gl = Math.min(grainLength, dur);
+        let startPosition = x * (dur - gl);
+        startPosition = Math.max(0, Math.min(startPosition, dur - gl));
+
+        const source = audioContext.createBufferSource();
+        source.buffer = mainRecorderAudioBuffer;
+        const envelope = audioContext.createGain();
+        source.connect(envelope);
+        envelope.connect(spectralSynthInputGain);
+
+        const now = audioContext.currentTime;
+        envelope.gain.setValueAtTime(0, now);
+        envelope.gain.linearRampToValueAtTime(1, now + gl * 0.5);
+        envelope.gain.linearRampToValueAtTime(0, now + gl);
+
+        source.start(now, startPosition, gl);
+        currentImageGrainSource = source;
+        source.onended = () => {
+            if (currentImageGrainSource === source) currentImageGrainSource = null;
+            try { source.disconnect(); envelope.disconnect(); } catch (e) {}
+        };
+    }
+
+    function imagePlaybackTick() {
+        if (!spectralSynthPowerSwitch.checked || !isSpectralImageReady() || isDrawingPath) {
+            stopImagePlayback();
+            return;
+        }
+        const col = imagePlaybackColumn;
+        const stepMs = 50 / spectralImageSpeedValue();
+        const grainLength = stepMs < 50 ? Math.max(0.04, 2 * stepMs / 1000) : 0.1;
+
+        updateSpectralSynthFiltersFromImage(col);
+        playGrainAtImagePosition((col + 0.5) / SPEC_IMG_COLS, grainLength);
+
+        imageHead = { col, t0: performance.now(), stepMs };
+        imagePlaybackColumn = (col + 1) % SPEC_IMG_COLS;
+        imagePlaybackTimer = setTimeout(imagePlaybackTick, stepMs);
+    }
+
+    function startImagePlayback() {
+        if (imagePlaybackTimer !== null || isDrawingPath) return;
+        if (!spectralSynthPowerSwitch || !spectralSynthPowerSwitch.checked || !isSpectralImageReady()) return;
+        if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+        stopPathPlayback();
+        stopSpectralSynth();
+        const t = audioContext.currentTime;
+        spectralFilterBank.forEach(ch => ch.gainNode.gain.cancelScheduledValues(t));
+        if (imagePlaybackColumn >= SPEC_IMG_COLS) imagePlaybackColumn = 0;
+        imagePlaybackTick();
+    }
+
+    function stopImagePlayback() {
+        const wasRunning = imagePlaybackTimer !== null;
+        if (imagePlaybackTimer !== null) {
+            clearTimeout(imagePlaybackTimer);
+            imagePlaybackTimer = null;
+        }
+        if (currentImageGrainSource) {
+            try { currentImageGrainSource.stop(0); } catch (e) {}
+            currentImageGrainSource = null;
+        }
+        if (wasRunning && audioContext && spectralFilterBank.length) {
+            const t = audioContext.currentTime;
+            spectralFilterBank.forEach(ch => {
+                const g = ch.gainNode.gain;
+                g.cancelScheduledValues(t);
+                g.setValueAtTime(g.value, t);
+                g.linearRampToValueAtTime(0, t + 0.05);
+            });
+        }
+    }
+
+    // ---------------- Capa de dibujo ----------------
+    function drawSpectralImageLayer(ctx, width, height) {
+        if (!spectralImageAnalysis) return;
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(spectralImageAnalysis.canvas, 0, 0, width, height);
+        ctx.restore();
+
+        if (imagePlaybackTimer !== null) {
+            const frac = Math.min(1, Math.max(0, (performance.now() - imageHead.t0) / imageHead.stepMs));
+            const x = ((imageHead.col + frac) / SPEC_IMG_COLS) * width;
+            ctx.save();
+            const grad = ctx.createLinearGradient(x - 14, 0, x, 0);
+            grad.addColorStop(0, 'rgba(255,255,255,0)');
+            grad.addColorStop(1, 'rgba(255,255,255,0.16)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x - 14, 0, 14, height);
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = Math.max(1.5, height * 0.006);
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // ---------------- Interfaz y eventos ----------------
+    function setupSpectralImage() {
+        siEls.zone = document.getElementById('spectralImageDropZone');
+        siEls.file = document.getElementById('spectralImageFileInput');
+        siEls.info = document.getElementById('spectralImageInfo');
+        siEls.sens = document.getElementById('spectralImageSensitivity');
+        siEls.sensLabel = document.getElementById('spectralImageSensitivityValue');
+        siEls.speed = document.getElementById('spectralImageSpeed');
+        siEls.speedLabel = document.getElementById('spectralImageSpeedValue');
+        siEls.analyzeBtn = document.getElementById('spectralImageAnalyzeBtn');
+        siEls.removeBtn = document.getElementById('spectralImageRemoveBtn');
+        if (!siEls.zone || !siEls.file) return;
+
+        updateSpectralImageSliderLabels();
+        refreshSpectralImageUI(false);
+
+        siEls.zone.addEventListener('click', () => siEls.file.click());
+        siEls.zone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); siEls.file.click(); }
+        });
+        siEls.file.addEventListener('change', () => {
+            const f = siEls.file.files && siEls.file.files[0];
+            siEls.file.value = '';
+            handleSpectralImageFile(f);
+        });
+        ['dragenter', 'dragover'].forEach(ev => siEls.zone.addEventListener(ev, (e) => {
+            e.preventDefault(); e.stopPropagation();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+            siEls.zone.classList.add('si-dragover');
+        }));
+        siEls.zone.addEventListener('dragleave', (e) => {
+            e.stopPropagation();
+            siEls.zone.classList.remove('si-dragover');
+        });
+        siEls.zone.addEventListener('drop', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            siEls.zone.classList.remove('si-dragover');
+            const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            handleSpectralImageFile(f);
+        });
+
+        siEls.sens.addEventListener('input', updateSpectralImageSliderLabels);
+        siEls.speed.addEventListener('input', updateSpectralImageSliderLabels);
+        siEls.analyzeBtn.addEventListener('click', () => { runSpectralImageAnalysis(); });
+        siEls.removeBtn.addEventListener('click', () => {
+            setCurrentSpectralImage(null);
+        });
+
+        // Interruptor del espectro: arranca/para el barrido (corre después del manejador original)
+        if (spectralSynthPowerSwitch) {
+            spectralSynthPowerSwitch.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    if (isSpectralImageReady()) startImagePlayback();
+                } else {
+                    stopImagePlayback();
+                }
+            });
+        }
+
+        // Dibujar un trazo pausa el barrido (suena el trazo en vivo como hoy); al soltar se reanuda.
+        spectrumCanvas.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if (isDrawingPath && imagePlaybackTimer !== null) {
+                imagePausedForDraw = true;
+                stopImagePlayback();
+            }
+        });
+        window.addEventListener('mouseup', (e) => {
+            if (e.button !== 0) return;
+            if (imagePausedForDraw && !isDrawingPath) {
+                imagePausedForDraw = false;
+                startImagePlayback();
+            }
         });
     }
 
